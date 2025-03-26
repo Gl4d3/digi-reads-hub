@@ -1,13 +1,16 @@
 
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ShoppingCart } from 'lucide-react';
+import { ShoppingCart, Clock, BookOpen, Bookmark, PercentSquare, ArrowRight } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { getBundleWithBooks } from '@/services/bookServiceFixed';
 import { Book, Bundle } from '@/types/supabase';
 import BookCard from '@/components/BookCard';
 import Navbar from '@/components/Navbar';
+import { motion } from 'framer-motion';
+import { useToast } from '@/components/ui/use-toast';
+import { Separator } from '@/components/ui/separator';
 
 const BundleDetailPage = () => {
   const { bundleId } = useParams<{ bundleId: string }>();
@@ -15,6 +18,7 @@ const BundleDetailPage = () => {
   const [books, setBooks] = useState<Book[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { addItem } = useCart();
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchBundleDetails = async () => {
@@ -27,13 +31,18 @@ const BundleDetailPage = () => {
         setBooks(books);
       } catch (error) {
         console.error('Error fetching bundle details:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load bundle details. Please try again.",
+          variant: "destructive",
+        });
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchBundleDetails();
-  }, [bundleId]);
+  }, [bundleId, toast]);
 
   // Calculate original total price
   const originalTotal = books.reduce((sum, book) => sum + book.price, 0);
@@ -51,6 +60,59 @@ const BundleDetailPage = () => {
     books.forEach(book => {
       addItem(book);
     });
+    
+    toast({
+      title: "Bundle Added",
+      description: `${bundle?.name} has been added to your cart.`,
+    });
+  };
+
+  // Get style based on bundle type
+  const getBundleStyle = () => {
+    if (!bundleId) return {};
+    
+    if (bundleId === 'weekly-bundle') {
+      return {
+        gradientBg: 'bg-gradient-to-r from-amber-50 to-amber-100',
+        accentColor: 'text-amber-600',
+        buttonVariant: 'default'
+      };
+    } else if (bundleId === 'daily-bundle') {
+      return {
+        gradientBg: 'bg-gradient-to-r from-blue-50 to-blue-100',
+        accentColor: 'text-blue-600',
+        buttonVariant: 'default'
+      };
+    } else {
+      return {
+        gradientBg: 'bg-gradient-to-r from-purple-50 to-purple-100',
+        accentColor: 'text-purple-600',
+        buttonVariant: 'default'
+      };
+    }
+  };
+
+  const style = getBundleStyle();
+
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: { 
+      opacity: 1,
+      transition: { 
+        when: "beforeChildren",
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: { 
+      y: 0, 
+      opacity: 1,
+      transition: { type: "spring", stiffness: 100 }
+    }
   };
 
   if (isLoading) {
@@ -59,7 +121,7 @@ const BundleDetailPage = () => {
         <Navbar />
         <div className="container px-4 py-12 md:px-6">
           <div className="flex items-center justify-center h-64">
-            <div className="animate-pulse">Loading bundle...</div>
+            <div className="animate-pulse">Loading bundle details...</div>
           </div>
         </div>
       </div>
@@ -73,6 +135,9 @@ const BundleDetailPage = () => {
         <div className="container px-4 py-12 md:px-6">
           <h1 className="text-3xl font-bold mb-6">Bundle Not Found</h1>
           <p>The bundle you're looking for doesn't exist or has been removed.</p>
+          <Button asChild className="mt-6">
+            <Link to="/bundles">View All Bundles</Link>
+          </Button>
         </div>
       </div>
     );
@@ -81,66 +146,115 @@ const BundleDetailPage = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <div className="container px-4 py-12 md:px-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-          {/* Image */}
-          <div className="md:col-span-1">
-            <div className="aspect-square bg-muted rounded-lg overflow-hidden">
-              <img 
-                src={bundle.image_url || '/assets/digireads-placeholder.jpg'} 
-                alt={bundle.name}
-                className="w-full h-full object-cover"
-              />
-            </div>
-          </div>
-          
-          {/* Details */}
-          <div className="md:col-span-2 space-y-6">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">{bundle.name}</h1>
-              <p className="text-muted-foreground">{bundle.description}</p>
-            </div>
+      
+      {/* Hero section with bundle details */}
+      <div className={`${style.gradientBg} py-16`}>
+        <div className="container px-4 md:px-6">
+          <motion.div 
+            className="max-w-4xl mx-auto text-center"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <h1 className="text-4xl md:text-5xl font-bold mb-4">{bundle.name}</h1>
+            <p className="text-xl text-muted-foreground mb-8">{bundle.description}</p>
             
-            <div className="border-t border-border pt-4">
-              <div className="flex items-center space-x-2 mb-2">
-                <span className="text-lg text-muted-foreground line-through">{formatPrice(originalTotal)}</span>
-                <span className="text-2xl font-bold">{formatPrice(discountedTotal)}</span>
-                <span className="inline-flex items-center rounded-full bg-green-500/20 text-green-600 px-2.5 py-0.5 text-sm font-medium">
-                  Save {bundle.discount_percentage}%
-                </span>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
+              <div className="flex items-center font-medium">
+                <Clock className={`${style.accentColor} mr-2 h-5 w-5`} />
+                <span>Limited Time Offer</span>
               </div>
-              <p className="text-sm text-muted-foreground mb-4">
-                This bundle includes {books.length} book{books.length !== 1 ? 's' : ''} for the price of {Math.ceil(books.length * (1 - bundle.discount_percentage / 100))}.
-              </p>
-              
-              <Button 
-                className="w-full sm:w-auto" 
-                size="lg"
-                onClick={handleAddBundleToCart}
-              >
-                <ShoppingCart className="mr-2 h-5 w-5" /> Add Bundle to Cart
-              </Button>
+              <div className="flex items-center font-medium">
+                <BookOpen className={`${style.accentColor} mr-2 h-5 w-5`} />
+                <span>{books.length} Books Included</span>
+              </div>
+              <div className="flex items-center font-medium">
+                <PercentSquare className={`${style.accentColor} mr-2 h-5 w-5`} />
+                <span>{bundle.discount_percentage}% Discount</span>
+              </div>
             </div>
             
-            <div className="border-t border-border pt-4">
-              <h3 className="font-semibold mb-2">Bundle Details:</h3>
-              <ul className="list-disc ml-5 space-y-1 text-muted-foreground">
-                <li>Instant access to all titles in this bundle</li>
-                <li>Available in all supported formats</li>
-                <li>Save {bundle.discount_percentage}% compared to individual purchases</li>
-              </ul>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 inline-block">
+              <div className="flex flex-col sm:flex-row items-center gap-4">
+                <div className="text-center sm:text-left">
+                  <p className="text-sm text-muted-foreground">Regular Price</p>
+                  <p className="text-lg line-through text-muted-foreground">{formatPrice(originalTotal)}</p>
+                </div>
+                <div className="hidden sm:block">
+                  <ArrowRight className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <div className="text-center sm:text-left">
+                  <p className="text-sm text-muted-foreground">Bundle Price</p>
+                  <p className="text-3xl font-bold">{formatPrice(discountedTotal)}</p>
+                </div>
+                <div className="sm:ml-4">
+                  <Button 
+                    onClick={handleAddBundleToCart}
+                    size="lg"
+                    className="px-8"
+                  >
+                    <ShoppingCart className="mr-2 h-5 w-5" /> Add Bundle to Cart
+                  </Button>
+                </div>
+              </div>
             </div>
-          </div>
+          </motion.div>
         </div>
+      </div>
+      
+      {/* Books in bundle */}
+      <div className="container px-4 py-12 md:px-6">
+        <h2 className="text-3xl font-bold mb-8">Books Included in This Bundle</h2>
         
-        {/* Books in bundle */}
-        <div>
-          <h2 className="text-2xl font-bold mb-6">Books in this Bundle</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {books.map((book) => (
-              <BookCard key={book.id} {...book} />
-            ))}
-          </div>
+        <motion.div 
+          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+        >
+          {books.map((book) => (
+            <motion.div key={book.id} variants={itemVariants}>
+              <BookCard {...book} />
+            </motion.div>
+          ))}
+        </motion.div>
+        
+        <Separator className="my-12" />
+        
+        <div className="bg-muted rounded-lg p-6 md:p-8 mt-12">
+          <h3 className="text-xl font-semibold mb-4">Bundle Details</h3>
+          <ul className="space-y-2">
+            <li className="flex">
+              <Bookmark className="h-5 w-5 mr-2 text-muted-foreground shrink-0" />
+              <span>Instant access to all {books.length} titles in this bundle</span>
+            </li>
+            <li className="flex">
+              <Bookmark className="h-5 w-5 mr-2 text-muted-foreground shrink-0" />
+              <span>Available in all supported formats (e-book and print where applicable)</span>
+            </li>
+            <li className="flex">
+              <Bookmark className="h-5 w-5 mr-2 text-muted-foreground shrink-0" />
+              <span>Save {bundle.discount_percentage}% compared to individual purchases</span>
+            </li>
+            {bundleId === 'weekly-bundle' && (
+              <li className="flex">
+                <Bookmark className="h-5 w-5 mr-2 text-muted-foreground shrink-0" />
+                <span>New selection released every Monday - get them while they're available!</span>
+              </li>
+            )}
+            {bundleId === 'daily-bundle' && (
+              <li className="flex">
+                <Bookmark className="h-5 w-5 mr-2 text-muted-foreground shrink-0" />
+                <span>Perfect for daily reading and inspiration</span>
+              </li>
+            )}
+            {bundleId === 'flash-sale-bundle' && (
+              <li className="flex">
+                <Bookmark className="h-5 w-5 mr-2 text-muted-foreground shrink-0" />
+                <span>Limited time offer - get this bundle before it's gone!</span>
+              </li>
+            )}
+          </ul>
         </div>
       </div>
     </div>

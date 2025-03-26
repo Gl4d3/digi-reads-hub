@@ -1,64 +1,105 @@
-
 import { supabase, fromSupabase } from '@/integrations/supabase/client';
 import { Book, Category, Bundle } from '@/types/supabase';
+import { 
+  searchOpenLibrary, 
+  getBookDetails, 
+  generateBundles, 
+  getCategories as getOpenLibraryCategories, 
+  DEFAULT_BOOK_IMAGE 
+} from './openLibraryService';
 
-// Default fallback image if no image is available
-const DEFAULT_BOOK_IMAGE = '/assets/digireads-placeholder.jpg';
+// Cache for books, categories, and bundles
+let booksCache: Book[] | null = null;
+let categoriesCache: Category[] | null = null;
+let bundlesCache: Bundle[] | null = null;
+let bundleBooksMap: Record<string, string[]> = {};
+
+// Initialize bundle books mapping for our predefined bundles
+async function initializeBundlesData() {
+  if (bundlesCache) return bundlesCache;
+  
+  // Generate our predefined bundles
+  bundlesCache = generateBundles();
+  
+  // Initialize books for each bundle
+  await Promise.all(bundlesCache.map(async (bundle) => {
+    // Fetch books based on bundle theme
+    let query = '';
+    let limit = 5;
+    
+    if (bundle.id === 'weekly-bundle') {
+      query = 'african fiction bestseller';
+    } else if (bundle.id === 'daily-bundle') {
+      query = 'inspirational poetry';
+      limit = 3;
+    } else if (bundle.id === 'flash-sale-bundle') {
+      query = 'african classics chinua achebe';
+    }
+    
+    const books = await searchOpenLibrary(query, limit);
+    bundleBooksMap[bundle.id] = books.map(book => book.id);
+    
+    // Add books to the cache
+    if (booksCache) {
+      booksCache = [...booksCache, ...books];
+    } else {
+      booksCache = books;
+    }
+  }));
+  
+  return bundlesCache;
+}
+
+// Initialize categories
+function initializeCategories() {
+  if (categoriesCache) return categoriesCache;
+  categoriesCache = getOpenLibraryCategories();
+  return categoriesCache;
+}
 
 export async function getBooks(): Promise<Book[]> {
-  const { data, error } = await fromSupabase.books()
-    .select('*')
-    .order('created_at', { ascending: false });
+  try {
+    if (booksCache) return booksCache;
     
-  if (error) {
+    // Fetch and cache books from different categories
+    const categories = ['african literature', 'poetry', 'history'];
+    const booksPromises = categories.map(category => 
+      searchOpenLibrary(category, 15)
+    );
+    
+    const booksArrays = await Promise.all(booksPromises);
+    booksCache = booksArrays.flat();
+    
+    return booksCache;
+  } catch (error) {
     console.error('Error fetching books:', error);
-    throw error;
+    return [];
   }
-  
-  // Ensure all books have an image URL
-  return data as unknown as Book[];
 }
 
 export async function getBooksByCategory(categorySlug: string): Promise<Book[]> {
   try {
-    // First get the category ID
-    const { data: categoryData, error: categoryError } = await fromSupabase.categories()
-      .select('*')
-      .eq('slug', categorySlug)
-      .single();
-      
-    if (categoryError) {
-      console.error('Error fetching category:', categoryError);
-      throw categoryError;
-    }
-
-    // Then get all books in that category
-    const { data: bookCategoriesData, error: bookCategoriesError } = await fromSupabase.book_categories()
-      .select('*')
-      .eq('category_id', categoryData?.id || '');
-      
-    if (bookCategoriesError) {
-      console.error('Error fetching book categories:', bookCategoriesError);
-      throw bookCategoriesError;
-    }
-
-    // Safe access to book_id with type assertion
-    const bookIds = (bookCategoriesData as any[]).map(bc => bc.book_id);
+    // Initialize categories
+    const categories = initializeCategories();
+    const category = categories.find(c => c.slug === categorySlug);
     
-    if (!bookIds || bookIds.length === 0) {
+    if (!category) {
+      console.error(`Category not found: ${categorySlug}`);
       return [];
     }
 
-    const { data: booksData, error: booksError } = await fromSupabase.books()
-      .select('*')
-      .in('id', bookIds);
-      
-    if (booksError) {
-      console.error('Error fetching books by ids:', booksError);
-      throw booksError;
+    // If we have cached books, filter them
+    if (booksCache) {
+      // For simplicity, we'll do a naive match based on category name in the title or description
+      // In a real app, you'd have proper categorization
+      return booksCache.filter(book => 
+        book.title.toLowerCase().includes(category.name.toLowerCase()) || 
+        (book.description && book.description.toLowerCase().includes(category.name.toLowerCase()))
+      );
     }
 
-    return booksData as unknown as Book[];
+    // Otherwise fetch books for this category
+    return await searchOpenLibrary(category.name, 20);
   } catch (error) {
     console.error('Error in getBooksByCategory:', error);
     return [];
@@ -66,71 +107,50 @@ export async function getBooksByCategory(categorySlug: string): Promise<Book[]> 
 }
 
 export async function getCategories(): Promise<Category[]> {
-  const { data, error } = await fromSupabase.categories()
-    .select('*')
-    .order('name');
-    
-  if (error) {
-    console.error('Error fetching categories:', error);
-    throw error;
-  }
-  
-  return data as unknown as Category[];
+  return initializeCategories();
 }
 
 export async function getNewReleases(limit = 4): Promise<Book[]> {
-  const { data, error } = await fromSupabase.books()
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(limit);
+  try {
+    const allBooks = await getBooks();
     
-  if (error) {
+    // Sort by created_at date and limit
+    return allBooks
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, limit);
+  } catch (error) {
     console.error('Error fetching new releases:', error);
-    throw error;
+    return [];
   }
-  
-  return data as unknown as Book[];
 }
 
 export async function getFeaturedBooks(limit = 4): Promise<Book[]> {
-  const { data, error } = await fromSupabase.books()
-    .select('*')
-    .eq('is_featured', true)
-    .limit(limit);
+  try {
+    const allBooks = await getBooks();
     
-  if (error) {
+    // Filter featured books and limit
+    return allBooks
+      .filter(book => book.is_featured)
+      .slice(0, limit);
+  } catch (error) {
     console.error('Error fetching featured books:', error);
-    throw error;
+    return [];
   }
-  
-  return data as unknown as Book[];
 }
 
 export async function searchBooks(query: string, filters = {}): Promise<Book[]> {
   try {
-    let supabaseQuery = fromSupabase.books()
-      .select('*');
-      
-    // Apply text search if query is provided
-    if (query) {
-      supabaseQuery = supabaseQuery.or(`title.ilike.%${query}%,author.ilike.%${query}%`);
+    // If we have cached books, filter them
+    if (booksCache && query) {
+      const lowercaseQuery = query.toLowerCase();
+      return booksCache.filter(book => 
+        book.title.toLowerCase().includes(lowercaseQuery) || 
+        book.author.toLowerCase().includes(lowercaseQuery)
+      );
     }
     
-    // Apply any additional filters
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value) {
-        supabaseQuery = supabaseQuery.eq(key, value);
-      }
-    });
-    
-    const { data, error } = await supabaseQuery;
-      
-    if (error) {
-      console.error('Error searching books:', error);
-      throw error;
-    }
-    
-    return data as unknown as Book[];
+    // Otherwise, search directly
+    return await searchOpenLibrary(query, 20);
   } catch (error) {
     console.error('Error in searchBooks:', error);
     return [];
@@ -138,61 +158,56 @@ export async function searchBooks(query: string, filters = {}): Promise<Book[]> 
 }
 
 export async function getBundles(): Promise<Bundle[]> {
-  const { data, error } = await fromSupabase.bundles()
-    .select('*')
-    .eq('is_active', true);
-    
-  if (error) {
+  try {
+    // Initialize bundles if not already done
+    return await initializeBundlesData();
+  } catch (error) {
     console.error('Error fetching bundles:', error);
-    throw error;
+    return [];
   }
-  
-  return data as unknown as Bundle[];
 }
 
 export async function getBundleWithBooks(bundleId: string): Promise<{bundle: Bundle, books: Book[]}> {
   try {
-    // Get the bundle
-    const { data: bundleData, error: bundleError } = await fromSupabase.bundles()
-      .select('*')
-      .eq('id', bundleId)
-      .single();
-      
-    if (bundleError) {
-      console.error('Error fetching bundle:', bundleError);
-      throw bundleError;
-    }
-
-    // Get the books in the bundle
-    const { data: bundleBooksData, error: bundleBooksError } = await fromSupabase.bundle_books()
-      .select('*')
-      .eq('bundle_id', bundleId);
-      
-    if (bundleBooksError) {
-      console.error('Error fetching bundle books:', bundleBooksError);
-      throw bundleBooksError;
-    }
-
-    // Safe access with type assertion
-    const bookIds = (bundleBooksData as any[]).map(bb => bb.book_id);
+    // Initialize bundles if not already done
+    const bundles = await initializeBundlesData();
+    const bundle = bundles.find(b => b.id === bundleId);
     
-    if (!bookIds || bookIds.length === 0) {
-      return { bundle: bundleData as unknown as Bundle, books: [] };
+    if (!bundle) {
+      throw new Error(`Bundle not found: ${bundleId}`);
     }
 
-    const { data: booksData, error: booksError } = await fromSupabase.books()
-      .select('*')
-      .in('id', bookIds);
+    // Get books for this bundle
+    const bookIds = bundleBooksMap[bundleId] || [];
+    let books: Book[] = [];
+    
+    if (booksCache) {
+      // Find books from cache
+      books = booksCache.filter(book => bookIds.includes(book.id));
+    }
+    
+    // If we couldn't find all books in the cache, fetch them individually
+    if (books.length < bookIds.length) {
+      const missingBookIds = bookIds.filter(id => !books.some(book => book.id === id));
+      const missingBooksPromises = missingBookIds.map(id => getBookDetails(id));
+      const missingBooks = await Promise.all(missingBooksPromises);
       
-    if (booksError) {
-      console.error('Error fetching books by ids:', booksError);
-      throw booksError;
+      // Add valid books to the result and cache
+      missingBooks.forEach(book => {
+        if (book) {
+          books.push(book);
+          if (booksCache) {
+            booksCache.push(book);
+          } else {
+            booksCache = [book];
+          }
+        }
+      });
     }
 
-    // Return the bundle and books
     return {
-      bundle: bundleData as unknown as Bundle,
-      books: booksData as unknown as Book[]
+      bundle,
+      books
     };
   } catch (error) {
     console.error('Error in getBundleWithBooks:', error);
@@ -263,16 +278,17 @@ export async function getFavorites(userId: string): Promise<Book[]> {
       return [];
     }
 
-    const { data: booksData, error: booksError } = await fromSupabase.books()
-      .select('*')
-      .in('id', bookIds);
-      
-    if (booksError) {
-      console.error('Error fetching favorite books:', booksError);
-      throw booksError;
+    // If we have books in cache, find them there
+    if (booksCache) {
+      return booksCache.filter(book => bookIds.includes(book.id));
     }
 
-    return booksData as unknown as Book[];
+    // Otherwise, fetch each book individually
+    const booksPromises = bookIds.map(id => getBookDetails(id));
+    const books = await Promise.all(booksPromises);
+    
+    // Filter out null values (failed fetches)
+    return books.filter(book => book !== null) as Book[];
   } catch (error) {
     console.error('Error in getFavorites:', error);
     return [];
@@ -302,17 +318,32 @@ export async function checkIsFavorite(bookId: string, userId: string): Promise<b
 }
 
 export async function getBookById(bookId: string): Promise<Book> {
-  const { data, error } = await fromSupabase.books()
-    .select('*')
-    .eq('id', bookId)
-    .single();
+  try {
+    // First, check if book exists in cache
+    if (booksCache) {
+      const cachedBook = booksCache.find(book => book.id === bookId);
+      if (cachedBook) return cachedBook;
+    }
     
-  if (error) {
+    // If not in cache, fetch from OpenLibrary
+    const book = await getBookDetails(bookId);
+    
+    if (!book) {
+      throw new Error(`Book not found: ${bookId}`);
+    }
+    
+    // Add to cache
+    if (booksCache) {
+      booksCache.push(book);
+    } else {
+      booksCache = [book];
+    }
+    
+    return book;
+  } catch (error) {
     console.error('Error fetching book:', error);
     throw error;
   }
-  
-  return data as unknown as Book;
 }
 
 // Helper to add user to mailing list

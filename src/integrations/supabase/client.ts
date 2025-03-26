@@ -17,7 +17,7 @@ type GenericTable = Record<string, any>;
 
 // Create a type-safe wrapper for querying non-existent tables
 export const fromSupabase = {
-  // Use type assertion with any for tables that don't exist in the schema
+  // Use type assertion for tables that don't exist in the schema
   books: () => supabase.from('books' as any) as any,
   categories: () => supabase.from('categories' as any) as any,
   book_categories: () => supabase.from('book_categories' as any) as any,
