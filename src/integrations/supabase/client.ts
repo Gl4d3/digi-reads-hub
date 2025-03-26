@@ -11,18 +11,38 @@ const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
-// Since we're working with tables that don't exist in the actual schema,
-// we need to use a different approach for type safety
-type GenericTable = Record<string, any>;
-
-// Create a type-safe wrapper for querying non-existent tables
+// Enhanced type-safe wrapper for querying non-existent tables
+// This approach prevents TypeScript errors while allowing us to work with our virtual tables
 export const fromSupabase = {
-  // Use type assertion for tables that don't exist in the schema
-  books: () => supabase.from('books' as any) as any,
-  categories: () => supabase.from('categories' as any) as any,
-  book_categories: () => supabase.from('book_categories' as any) as any,
-  bundles: () => supabase.from('bundles' as any) as any,
-  bundle_books: () => supabase.from('bundle_books' as any) as any,
-  favorites: () => supabase.from('favorites'),
-  mailing_list: () => supabase.from('mailing_list' as any) as any
+  // Tables that exist in the actual schema (type safe)
+  favorites: () => supabase.from('favorites') as any,
+  profiles: () => supabase.from('profiles') as any,
+  search_history: () => supabase.from('search_history') as any,
+  
+  // Virtual tables for our book app (type assertions for non-existent tables)
+  books: () => supabase.from('dr_books' as any) as any,
+  categories: () => supabase.from('dr_categories' as any) as any,
+  book_categories: () => supabase.from('dr_book_categories' as any) as any,
+  bundles: () => supabase.from('dr_bundles' as any) as any,
+  bundle_books: () => supabase.from('dr_bundle_books' as any) as any,
+  mailing_list: () => supabase.from('dr_mailing_list' as any) as any
 };
+
+// Global cache configuration
+export const cacheConfig = {
+  // Time to live for cached data in milliseconds
+  ttl: {
+    books: 30 * 60 * 1000, // 30 minutes
+    categories: 60 * 60 * 1000, // 1 hour
+    bundles: 15 * 60 * 1000, // 15 minutes
+    search: 5 * 60 * 1000, // 5 minutes
+  },
+  // Maximum number of items to store in memory cache
+  maxItems: {
+    books: 200,
+    categories: 20,
+    bundles: 10,
+    search: 50
+  }
+};
+

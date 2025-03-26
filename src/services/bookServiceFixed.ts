@@ -1,5 +1,6 @@
 import { supabase, fromSupabase } from '@/integrations/supabase/client';
 import { Book, Category, Bundle } from '@/types/supabase';
+import { cache, cacheConfig } from '@/utils/cacheUtils';
 import { 
   searchOpenLibrary, 
   getBookDetails, 
@@ -16,7 +17,16 @@ let bundleBooksMap: Record<string, string[]> = {};
 
 // Initialize bundle books mapping for our predefined bundles
 async function initializeBundlesData() {
+  // Check our memory cache first
+  const cacheKey = 'all_bundles';
+  const cachedBundles = cache.bundles.get<Bundle[]>(cacheKey);
+  if (cachedBundles && bundlesCache !== null) {
+    return cachedBundles;
+  }
+  
   if (bundlesCache) return bundlesCache;
+  
+  console.log('Initializing bundles data');
   
   // Generate our predefined bundles
   bundlesCache = generateBundles();
@@ -36,7 +46,21 @@ async function initializeBundlesData() {
       query = 'african classics chinua achebe';
     }
     
-    const books = await searchOpenLibrary(query, limit);
+    // Use cached books if available
+    const bundleCacheKey = `bundle_books_${bundle.id}`;
+    const cachedBooks = cache.books.get<Book[]>(bundleCacheKey);
+    
+    let books: Book[];
+    if (cachedBooks) {
+      books = cachedBooks;
+      console.log(`Using cached books for bundle: ${bundle.id}`);
+    } else {
+      console.log(`Fetching books for bundle: ${bundle.id}`);
+      books = await searchOpenLibrary(query, limit);
+      // Cache bundle books
+      cache.books.set(bundleCacheKey, books, cacheConfig.ttl.books);
+    }
+    
     bundleBooksMap[bundle.id] = books.map(book => book.id);
     
     // Add books to the cache
@@ -47,19 +71,49 @@ async function initializeBundlesData() {
     }
   }));
   
+  // Cache the bundles
+  cache.bundles.set(cacheKey, bundlesCache, cacheConfig.ttl.bundles);
+  
   return bundlesCache;
 }
 
 // Initialize categories
 function initializeCategories() {
+  // Check cache first
+  const cacheKey = 'all_categories';
+  const cachedCategories = cache.categories.get<Category[]>(cacheKey);
+  if (cachedCategories) {
+    return cachedCategories;
+  }
+  
   if (categoriesCache) return categoriesCache;
+  
+  console.log('Initializing categories');
   categoriesCache = getOpenLibraryCategories();
+  
+  // Cache categories
+  cache.categories.set(cacheKey, categoriesCache, cacheConfig.ttl.categories);
+  
   return categoriesCache;
 }
 
 export async function getBooks(): Promise<Book[]> {
   try {
-    if (booksCache) return booksCache;
+    // Check cache first
+    const cacheKey = 'all_books';
+    const cachedBooks = cache.books.getWithLocalStorage<Book[]>(cacheKey);
+    if (cachedBooks && cachedBooks.length > 0) {
+      console.log('Using cached books');
+      return cachedBooks;
+    }
+    
+    if (booksCache && booksCache.length > 0) {
+      // Cache in our persistent store
+      cache.books.setWithLocalStorage(cacheKey, booksCache, cacheConfig.ttl.books);
+      return booksCache;
+    }
+    
+    console.log('Fetching all books');
     
     // Fetch and cache books from different categories
     const categories = ['african literature', 'poetry', 'history'];
@@ -69,6 +123,9 @@ export async function getBooks(): Promise<Book[]> {
     
     const booksArrays = await Promise.all(booksPromises);
     booksCache = booksArrays.flat();
+    
+    // Cache the books
+    cache.books.setWithLocalStorage(cacheKey, booksCache, cacheConfig.ttl.books);
     
     return booksCache;
   } catch (error) {
@@ -169,6 +226,14 @@ export async function getBundles(): Promise<Bundle[]> {
 
 export async function getBundleWithBooks(bundleId: string): Promise<{bundle: Bundle, books: Book[]}> {
   try {
+    // Check cache first
+    const cacheKey = `bundle_with_books_${bundleId}`;
+    const cachedData = cache.bundles.get<{bundle: Bundle, books: Book[]}>(cacheKey);
+    if (cachedData) {
+      console.log(`Using cached bundle with books: ${bundleId}`);
+      return cachedData;
+    }
+    
     // Initialize bundles if not already done
     const bundles = await initializeBundlesData();
     const bundle = bundles.find(b => b.id === bundleId);
@@ -205,10 +270,15 @@ export async function getBundleWithBooks(bundleId: string): Promise<{bundle: Bun
       });
     }
 
-    return {
+    const result = {
       bundle,
       books
     };
+    
+    // Cache the result
+    cache.bundles.set(cacheKey, result, cacheConfig.ttl.bundles);
+
+    return result;
   } catch (error) {
     console.error('Error in getBundleWithBooks:', error);
     return { bundle: {} as Bundle, books: [] };
@@ -357,5 +427,34 @@ export async function subscribeToMailingList(email: string, firstName?: string):
   } catch (error) {
     console.error('Error subscribing to mailing list:', error);
     throw error;
+  }
+}
+
+// Helper to clear all caches
+export function clearAllCaches(): void {
+  booksCache = null;
+  categoriesCache = null;
+  bundlesCache = null;
+  bundleBooksMap = {};
+  cache.clearAll();
+}
+
+// Helper to prefetch common data
+export async function prefetchCommonData(): Promise<void> {
+  try {
+    console.log('Prefetching common data');
+    // Prefetch popular categories
+    await getCategories();
+    
+    // Prefetch featured books and new releases
+    await getFeaturedBooks();
+    await getNewReleases();
+    
+    // Prefetch bundles
+    await getBundles();
+    
+    console.log('Prefetching complete');
+  } catch (error) {
+    console.error('Error prefetching common data:', error);
   }
 }

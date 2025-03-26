@@ -1,5 +1,5 @@
-
 import { Book, Category, Bundle } from '@/types/supabase';
+import { cache, cacheConfig } from '@/utils/cacheUtils';
 
 // Default fallback image if no image is available
 export const DEFAULT_BOOK_IMAGE = '/assets/digireads-placeholder.jpg';
@@ -17,6 +17,15 @@ type OpenLibraryBook = {
 
 export async function searchOpenLibrary(query: string, limit = 30): Promise<Book[]> {
   try {
+    // Check cache first
+    const cacheKey = `search_${query}_${limit}`;
+    const cachedResult = cache.search.get<Book[]>(cacheKey);
+    if (cachedResult) {
+      console.log(`Cache hit for search: ${query}`);
+      return cachedResult;
+    }
+
+    console.log(`Fetching books from OpenLibrary for query: ${query}`);
     const response = await fetch(`${API_BASE_URL}/search.json?q=${encodeURIComponent(query)}&limit=${limit}`);
     
     if (!response.ok) {
@@ -26,7 +35,7 @@ export async function searchOpenLibrary(query: string, limit = 30): Promise<Book
     const data = await response.json();
     
     // Transform OpenLibrary books to our Book format
-    return data.docs.map((book: OpenLibraryBook) => {
+    const books = data.docs.map((book: OpenLibraryBook) => {
       // Generate a random price between 700 and 1200 KES (for regular books)
       // or between 300 and 500 KES (for poetry collections)
       const isPoetry = book.subject?.some(s => 
@@ -47,14 +56,17 @@ export async function searchOpenLibrary(query: string, limit = 30): Promise<Book
         (book.title.toLowerCase().includes('poem') && !book.title.toLowerCase().includes('poems') || 
          book.title.toLowerCase().includes('poetry') && book.title.length < 30);
       
+      // Get higher quality image when available
+      const imageUrl = book.cover_i 
+        ? `https://covers.openlibrary.org/b/id/${book.cover_i}-L.jpg` // L is for large
+        : DEFAULT_BOOK_IMAGE;
+
       return {
         id: book.key.replace('/works/', ''),
         title: book.title,
         author: book.author_name?.[0] || 'Unknown Author',
         price: isSinglePoem ? 0 : price, // Free for single poems
-        image_url: book.cover_i 
-          ? `https://covers.openlibrary.org/b/id/${book.cover_i}-L.jpg` 
-          : DEFAULT_BOOK_IMAGE,
+        image_url: imageUrl,
         format: format,
         description: `Published ${book.first_publish_year || 'unknown year'} by ${book.publisher?.[0] || 'unknown publisher'}.`,
         created_at: new Date().toISOString(),
@@ -62,6 +74,11 @@ export async function searchOpenLibrary(query: string, limit = 30): Promise<Book
         is_featured: Math.random() > 0.8, // 20% chance of being featured
       };
     });
+
+    // Store in cache
+    cache.search.set(cacheKey, books, cacheConfig.ttl.search);
+    
+    return books;
   } catch (error) {
     console.error('Error fetching from OpenLibrary:', error);
     return [];
@@ -70,6 +87,15 @@ export async function searchOpenLibrary(query: string, limit = 30): Promise<Book
 
 export async function getBookDetails(bookId: string): Promise<Book | null> {
   try {
+    // Check cache first
+    const cacheKey = `book_details_${bookId}`;
+    const cachedResult = cache.books.getWithLocalStorage<Book>(cacheKey);
+    if (cachedResult) {
+      console.log(`Cache hit for book details: ${bookId}`);
+      return cachedResult;
+    }
+
+    console.log(`Fetching book details from OpenLibrary: ${bookId}`);
     const response = await fetch(`${API_BASE_URL}/works/${bookId}.json`);
     
     if (!response.ok) {
@@ -122,20 +148,30 @@ export async function getBookDetails(bookId: string): Promise<Book | null> {
       }
     }
     
-    return {
+    // Get highest quality cover image
+    let imageUrl = DEFAULT_BOOK_IMAGE;
+    if (data.covers && data.covers.length > 0) {
+      // Try to get the best cover
+      imageUrl = `https://covers.openlibrary.org/b/id/${data.covers[0]}-L.jpg`;
+    }
+    
+    const book = {
       id: bookId,
       title: data.title,
       author: authorData?.name || data.authors?.[0]?.name || 'Unknown Author',
       price: price,
-      image_url: data.covers?.[0] 
-        ? `https://covers.openlibrary.org/b/id/${data.covers[0]}-L.jpg` 
-        : DEFAULT_BOOK_IMAGE,
+      image_url: imageUrl,
       format: format,
       description: description,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       is_featured: Math.random() > 0.8, // 20% chance of being featured
     };
+
+    // Store in both memory and localStorage caches
+    cache.books.setWithLocalStorage(cacheKey, book, cacheConfig.ttl.books);
+    
+    return book;
   } catch (error) {
     console.error('Error fetching book details:', error);
     return null;
