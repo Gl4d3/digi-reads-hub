@@ -4,12 +4,13 @@ import { useParams } from 'react-router-dom';
 import BookCard from '@/components/BookCard';
 import { books } from '@/data/books'; // Sample data
 
-// Type for URL parameters
-interface CategoryParams {
-  categoryId: string;
-}
+// The correct way to type params with useParams
+type CategoryParams = {
+  categoryId?: string;
+};
 
 const CategoryPage = () => {
+  // Use the correct typing for useParams
   const { categoryId } = useParams<CategoryParams>();
   
   // Convert URL parameter to display format
