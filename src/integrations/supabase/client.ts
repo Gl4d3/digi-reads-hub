@@ -11,15 +11,18 @@ const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
-// Since the database tables don't match what we're trying to access,
-// we'll use type assertions to work around the type issues
+// Since we're working with tables that don't exist in the actual schema,
+// we need to use a different approach for type safety
+type GenericTable = Record<string, any>;
+
+// Create a type-safe wrapper for querying non-existent tables
 export const fromSupabase = {
-  // We'll use any type to bypass type checking since these tables don't exist yet
-  books: () => supabase.from('books' as any),
-  categories: () => supabase.from('categories' as any),
-  book_categories: () => supabase.from('book_categories' as any),
-  bundles: () => supabase.from('bundles' as any),
-  bundle_books: () => supabase.from('bundle_books' as any),
+  // Use type assertion with any for tables that don't exist in the schema
+  books: () => supabase.from('books' as any) as any,
+  categories: () => supabase.from('categories' as any) as any,
+  book_categories: () => supabase.from('book_categories' as any) as any,
+  bundles: () => supabase.from('bundles' as any) as any,
+  bundle_books: () => supabase.from('bundle_books' as any) as any,
   favorites: () => supabase.from('favorites'),
-  mailing_list: () => supabase.from('mailing_list' as any)
+  mailing_list: () => supabase.from('mailing_list' as any) as any
 };

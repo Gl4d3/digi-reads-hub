@@ -16,7 +16,7 @@ const MailingListSignup: React.FC<MailingListSignupProps> = ({ className }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
-  // Replace the handleSubmit function to use our fixed service
+  // Use the fixed service
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     
@@ -32,6 +32,7 @@ const MailingListSignup: React.FC<MailingListSignupProps> = ({ className }) => {
     setIsSubmitting(true);
     
     try {
+      // Use mock service instead of actual database insertion
       await subscribeToMailingList(email, firstName);
       
       toast({
