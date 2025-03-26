@@ -1,10 +1,9 @@
-
 import React, { useEffect, useState } from 'react';
 import Navbar from '@/components/Navbar';
 import Banner from '@/components/Banner';
 import CategorySection from '@/components/CategorySection';
 import MailingListSignup from '@/components/MailingListSignup';
-import { getBooksByCategory, getNewReleases } from '@/services/bookService';
+import { getNewReleases, getFeaturedBooks, getBooksByCategory } from '@/services/bookServiceFixed';
 import { Book } from '@/types/supabase';
 
 const Index = () => {
@@ -187,7 +186,6 @@ const Index = () => {
 
 export default Index;
 
-// Missing Link import
 const Link = ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
   <a href={to} className={className}>
     {children}

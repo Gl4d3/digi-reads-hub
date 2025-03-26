@@ -1,23 +1,19 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import BookCard from '@/components/BookCard';
-import { getBooksByCategory } from '@/services/bookService';
+import { getBooksByCategory, getCategories } from '@/services/bookServiceFixed';
 import { Book } from '@/types/supabase';
 import Navbar from '@/components/Navbar';
 
-// The correct way to type params with useParams
 type CategoryParams = {
   categoryId?: string;
 };
 
 const CategoryPage = () => {
-  // Use the correct typing for useParams
   const { categoryId } = useParams<CategoryParams>();
   const [books, setBooks] = useState<Book[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  // Convert URL parameter to display format
   const formatCategoryName = (categoryId: string | undefined) => {
     if (!categoryId) return '';
     return categoryId

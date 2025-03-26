@@ -1,8 +1,7 @@
-
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
-import { getBundles } from '@/services/bookService';
+import { getBundles } from '@/services/bookServiceFixed';
 import { Bundle } from '@/types/supabase';
 import { Button } from '@/components/ui/button';
 import { ShoppingBag } from 'lucide-react';

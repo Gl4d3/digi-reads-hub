@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -6,7 +5,7 @@ import { ShoppingCart, Heart } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { Book } from '@/types/supabase';
-import { toggleFavorite, checkIsFavorite } from '@/services/bookService';
+import { toggleFavorite, checkIsFavorite } from '@/services/bookServiceFixed';
 import { Link } from 'react-router-dom';
 
 interface BookCardProps extends Book {

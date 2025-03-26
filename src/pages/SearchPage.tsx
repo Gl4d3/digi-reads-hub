@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -9,6 +8,9 @@ import { Search } from 'lucide-react';
 
 // Sample book data
 import { books } from '@/data/books';
+
+// Update the import at the top of the file
+import { searchBooks } from '@/services/bookServiceFixed';
 
 const SearchPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
