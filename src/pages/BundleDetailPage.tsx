@@ -1,9 +1,10 @@
+
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ShoppingCart } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
-import { getBundleWithBooksFixed } from '@/services/bookServiceFixed';
+import { getBundleWithBooks } from '@/services/bookServiceFixed';
 import { Book, Bundle } from '@/types/supabase';
 import BookCard from '@/components/BookCard';
 import Navbar from '@/components/Navbar';
@@ -21,7 +22,7 @@ const BundleDetailPage = () => {
       
       setIsLoading(true);
       try {
-        const { bundle, books } = await getBundleWithBooksFixed(bundleId);
+        const { bundle, books } = await getBundleWithBooks(bundleId);
         setBundle(bundle);
         setBooks(books);
       } catch (error) {

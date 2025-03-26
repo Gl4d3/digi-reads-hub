@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -8,6 +9,7 @@ import { Search } from 'lucide-react';
 
 // Sample book data
 import { books } from '@/data/books';
+import { Book } from '@/types/supabase';
 
 // Update the import at the top of the file
 import { searchBooks } from '@/services/bookServiceFixed';
@@ -32,6 +34,15 @@ const SearchPage = () => {
 
   // Format price for display
   const formatPrice = (price: number) => `KES ${(price / 100).toFixed(2)}`;
+
+  // Transform sample book data to match Book type
+  const transformedBooks = filteredBooks.map(book => ({
+    ...book,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    is_featured: false,
+    image_url: book.imageUrl,
+  })) as unknown as Book[];
 
   return (
     <div className="min-h-screen bg-background">
@@ -131,7 +142,7 @@ const SearchPage = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {filteredBooks.map((book) => (
+              {transformedBooks.map((book) => (
                 <BookCard key={book.id} {...book} />
               ))}
             </div>
