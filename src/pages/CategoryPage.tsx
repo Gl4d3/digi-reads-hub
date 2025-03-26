@@ -1,8 +1,10 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import BookCard from '@/components/BookCard';
-import { books } from '@/data/books'; // Sample data
+import { getBooksByCategory } from '@/services/bookService';
+import { Book } from '@/types/supabase';
+import Navbar from '@/components/Navbar';
 
 // The correct way to type params with useParams
 type CategoryParams = {
@@ -12,6 +14,8 @@ type CategoryParams = {
 const CategoryPage = () => {
   // Use the correct typing for useParams
   const { categoryId } = useParams<CategoryParams>();
+  const [books, setBooks] = useState<Book[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   
   // Convert URL parameter to display format
   const formatCategoryName = (categoryId: string | undefined) => {
@@ -24,13 +28,27 @@ const CategoryPage = () => {
 
   const categoryName = formatCategoryName(categoryId);
   
-  // Filter books by category
-  const categoryBooks = books.filter(
-    book => book.category.toLowerCase() === categoryName.toLowerCase()
-  );
+  useEffect(() => {
+    const fetchBooks = async () => {
+      if (!categoryId) return;
+      
+      setIsLoading(true);
+      try {
+        const data = await getBooksByCategory(categoryId);
+        setBooks(data);
+      } catch (error) {
+        console.error('Error fetching books by category:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchBooks();
+  }, [categoryId]);
 
   return (
     <div className="min-h-screen bg-background">
+      <Navbar />
       <div className="container px-4 py-8 md:px-6 md:py-12">
         <header className="mb-12">
           <h1 className="text-3xl font-bold mb-4">{categoryName}</h1>
@@ -39,13 +57,17 @@ const CategoryPage = () => {
           </p>
         </header>
 
-        {categoryBooks.length === 0 ? (
+        {isLoading ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="animate-pulse">Loading books...</div>
+          </div>
+        ) : books.length === 0 ? (
           <div className="text-center py-16">
             <p className="text-muted-foreground">No books found in this category.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {categoryBooks.map((book) => (
+            {books.map((book) => (
               <BookCard key={book.id} {...book} />
             ))}
           </div>

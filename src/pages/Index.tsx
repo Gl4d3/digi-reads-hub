@@ -1,32 +1,47 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Navbar from '@/components/Navbar';
 import Banner from '@/components/Banner';
 import CategorySection from '@/components/CategorySection';
-import { books } from '@/data/books';
+import MailingListSignup from '@/components/MailingListSignup';
+import { getBooksByCategory, getNewReleases } from '@/services/bookService';
+import { Book } from '@/types/supabase';
 
 const Index = () => {
-  // Filter books by category
-  const selfHelpBooks = books
-    .filter(book => book.category === 'Self-Help')
-    .slice(0, 4);
-    
-  const africanLitBooks = books
-    .filter(book => book.category === 'African Literature')
-    .slice(0, 4);
-    
-  const businessBooks = books
-    .filter(book => book.category === 'Business')
-    .slice(0, 4);
-    
-  const healthBooks = books
-    .filter(book => book.category === 'Health')
-    .slice(0, 4);
-    
-  // Get new releases
-  const newReleases = books
-    .filter(book => book.isNew)
-    .slice(0, 4);
+  const [newReleases, setNewReleases] = useState<Book[]>([]);
+  const [africanLitBooks, setAfricanLitBooks] = useState<Book[]>([]);
+  const [selfHelpBooks, setSelfHelpBooks] = useState<Book[]>([]);
+  const [businessBooks, setBusinessBooks] = useState<Book[]>([]);
+  const [healthBooks, setHealthBooks] = useState<Book[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchBooks = async () => {
+      setIsLoading(true);
+      try {
+        // Fetch books by category
+        const [newReleasesData, africanLit, selfHelp, business, health] = await Promise.all([
+          getNewReleases(4),
+          getBooksByCategory('african-literature'),
+          getBooksByCategory('self-help'),
+          getBooksByCategory('business'),
+          getBooksByCategory('health')
+        ]);
+
+        setNewReleases(newReleasesData);
+        setAfricanLitBooks(africanLit.slice(0, 4));
+        setSelfHelpBooks(selfHelp.slice(0, 4));
+        setBusinessBooks(business.slice(0, 4));
+        setHealthBooks(health.slice(0, 4));
+      } catch (error) {
+        console.error('Error fetching books:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchBooks();
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -52,6 +67,7 @@ const Index = () => {
           description="The latest additions to our growing collection of African literature and more."
           category="new-releases"
           books={newReleases}
+          isLoading={isLoading}
         />
         
         {/* African Literature */}
@@ -61,6 +77,7 @@ const Index = () => {
           category="african-literature"
           books={africanLitBooks}
           className="bg-digireads-dark/50"
+          isLoading={isLoading}
         />
         
         {/* Self-Help */}
@@ -69,6 +86,7 @@ const Index = () => {
           description="Books to inspire personal growth and development."
           category="self-help"
           books={selfHelpBooks}
+          isLoading={isLoading}
         />
         
         {/* Special Offer Banner */}
@@ -91,6 +109,7 @@ const Index = () => {
           description="Essential reading for entrepreneurs and business professionals in the African context."
           category="business"
           books={businessBooks}
+          isLoading={isLoading}
         />
         
         {/* Health */}
@@ -100,7 +119,15 @@ const Index = () => {
           category="health"
           books={healthBooks}
           className="bg-digireads-dark/50"
+          isLoading={isLoading}
         />
+        
+        {/* Mailing List Signup */}
+        <section className="py-12 md:py-16 px-4 md:px-6">
+          <div className="container max-w-screen-md">
+            <MailingListSignup />
+          </div>
+        </section>
       </main>
       
       {/* Footer */}
@@ -117,10 +144,10 @@ const Index = () => {
             <div>
               <h3 className="text-lg font-semibold mb-4">Categories</h3>
               <ul className="space-y-2">
-                <li><a href="/category/self-help" className="text-muted-foreground hover:text-primary">Self-Help</a></li>
-                <li><a href="/category/african-literature" className="text-muted-foreground hover:text-primary">African Literature</a></li>
-                <li><a href="/category/business" className="text-muted-foreground hover:text-primary">Business</a></li>
-                <li><a href="/category/health" className="text-muted-foreground hover:text-primary">Health</a></li>
+                <li><Link to="/category/self-help" className="text-muted-foreground hover:text-primary">Self-Help</Link></li>
+                <li><Link to="/category/african-literature" className="text-muted-foreground hover:text-primary">African Literature</Link></li>
+                <li><Link to="/category/business" className="text-muted-foreground hover:text-primary">Business</Link></li>
+                <li><Link to="/category/health" className="text-muted-foreground hover:text-primary">Health</Link></li>
               </ul>
             </div>
             
@@ -159,3 +186,10 @@ const Index = () => {
 };
 
 export default Index;
+
+// Missing Link import
+const Link = ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
+  <a href={to} className={className}>
+    {children}
+  </a>
+);

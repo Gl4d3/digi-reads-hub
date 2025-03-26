@@ -1,21 +1,35 @@
 
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Search, ShoppingCart, Menu, X } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Search, ShoppingCart, Menu, X, User, LogOut, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import CartSlideOver from './CartSlideOver';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useAuth } from '@/context/AuthContext';
+import { useCart } from '@/context/CartContext';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const isMobile = useIsMobile();
-
-  const cartItemCount = 3; // This would come from your cart state/context
+  const { user, signOut } = useAuth();
+  const { totalItems } = useCart();
+  const navigate = useNavigate();
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
   const toggleCart = () => setIsCartOpen(!isCartOpen);
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/');
+  };
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border/40 bg-background/80 backdrop-blur-md">
@@ -45,6 +59,9 @@ const Navbar = () => {
             <Link to="/category/health" className="text-sm font-medium hover:text-primary transition-colors">
               Health
             </Link>
+            <Link to="/bundles" className="text-sm font-medium hover:text-primary transition-colors">
+              Bundles
+            </Link>
           </nav>
 
           {/* Mobile Navigation Button */}
@@ -59,11 +76,42 @@ const Navbar = () => {
             </Button>
           </div>
 
-          {/* Search and Cart */}
+          {/* Search, Auth and Cart */}
           <div className="flex items-center space-x-4">
             <Link to="/search" className="p-2 hover:text-primary" aria-label="Search">
               <Search className="h-5 w-5" />
             </Link>
+            
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="rounded-full bg-muted/80"
+                  >
+                    <User className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem className="text-sm" asChild>
+                    <Link to="/favorites">
+                      <Heart className="h-4 w-4 mr-2" />
+                      Favorites
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="text-sm" onClick={handleSignOut}>
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button variant="ghost" size="sm" asChild>
+                <Link to="/auth">Sign In</Link>
+              </Button>
+            )}
+            
             <Button 
               variant="ghost" 
               size="icon" 
@@ -72,8 +120,10 @@ const Navbar = () => {
               aria-label="Open cart"
             >
               <ShoppingCart className="h-5 w-5" />
-              {cartItemCount > 0 && (
-                <span className="cart-badge">{cartItemCount}</span>
+              {totalItems > 0 && (
+                <span className="absolute -top-1 -right-1 bg-primary text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                  {totalItems}
+                </span>
               )}
             </Button>
           </div>
@@ -111,6 +161,13 @@ const Navbar = () => {
               onClick={() => setIsMenuOpen(false)}
             >
               Health
+            </Link>
+            <Link 
+              to="/bundles" 
+              className="flex items-center p-2 text-sm font-medium hover:text-primary"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Bundles
             </Link>
           </div>
         </div>
