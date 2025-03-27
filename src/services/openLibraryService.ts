@@ -133,10 +133,10 @@ export async function getBookDetails(bookId: string): Promise<Book | null> {
     const price = isSinglePoem ? 0 : (Math.floor(Math.random() * (maxPrice - minPrice + 1)) + minPrice);
     
     // Random format assignment (weighted towards ebooks for poetry)
-    const formats = ['ebook', 'hardcover', 'both'];
+    const formats = ['ebook', 'hardcover', 'both'] as const;
     const format = isPoetry 
       ? (Math.random() > 0.7 ? 'ebook' : formats[Math.floor(Math.random() * formats.length)]) 
-      : formats[Math.floor(Math.random() * formats.length)] as 'ebook' | 'hardcover' | 'both';
+      : formats[Math.floor(Math.random() * formats.length)];
     
     // Construct description with author bio if available
     let description = data.description?.value || data.description || 'No description available.';
