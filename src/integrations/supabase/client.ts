@@ -45,4 +45,3 @@ export const cacheConfig = {
     search: 50
   }
 };
-

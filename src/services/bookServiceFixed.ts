@@ -1,6 +1,6 @@
-import { supabase, fromSupabase } from '@/integrations/supabase/client';
+import { supabase, fromSupabase, cacheConfig } from '@/integrations/supabase/client';
 import { Book, Category, Bundle } from '@/types/supabase';
-import { cache, cacheConfig } from '@/utils/cacheUtils';
+import { cache } from '@/utils/cacheUtils';
 import { 
   searchOpenLibrary, 
   getBookDetails, 

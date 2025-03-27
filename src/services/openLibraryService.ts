@@ -1,5 +1,7 @@
+
 import { Book, Category, Bundle } from '@/types/supabase';
-import { cache, cacheConfig } from '@/utils/cacheUtils';
+import { cache } from '@/utils/cacheUtils';
+import { cacheConfig } from '@/integrations/supabase/client';
 
 // Default fallback image if no image is available
 export const DEFAULT_BOOK_IMAGE = '/assets/digireads-placeholder.jpg';

@@ -64,6 +64,24 @@ const categoriesCache = new MemoryCache(20);
 const bundlesCache = new MemoryCache(10);
 const searchCache = new MemoryCache(50);
 
+// Export cacheConfig for use in other files
+export const cacheConfig = {
+  // Time to live for cached data in milliseconds
+  ttl: {
+    books: 30 * 60 * 1000, // 30 minutes
+    categories: 60 * 60 * 1000, // 1 hour
+    bundles: 15 * 60 * 1000, // 15 minutes
+    search: 5 * 60 * 1000, // 5 minutes
+  },
+  // Maximum number of items to store in memory cache
+  maxItems: {
+    books: 200,
+    categories: 20,
+    bundles: 10,
+    search: 50
+  }
+};
+
 // LocalStorage cache utilities
 export const localStorageCache = {
   get: <T>(key: string): T | null => {
