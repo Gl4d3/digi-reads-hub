@@ -7,6 +7,18 @@ import { cacheConfig } from '@/integrations/supabase/client';
 export const DEFAULT_BOOK_IMAGE = '/assets/digireads-placeholder.jpg';
 const API_BASE_URL = 'https://openlibrary.org';
 
+// Category search terms mapping for more consistent results
+const CATEGORY_SEARCH_TERMS = {
+  'self-help': 'self improvement motivation',
+  'african-literature': 'african fiction chinua achebe',
+  'business': 'business entrepreneurship marketing',
+  'health': 'health wellness fitness nutrition',
+  'poetry': 'poetry poems verse',
+  'history': 'history biography memoir',
+  'fiction': 'fiction novel bestseller',
+  'non-fiction': 'non-fiction essays journalism',
+};
+
 type OpenLibraryBook = {
   key: string;
   title: string;
@@ -63,6 +75,37 @@ export async function searchOpenLibrary(query: string, limit = 30): Promise<Book
         ? `https://covers.openlibrary.org/b/id/${book.cover_i}-L.jpg` // L is for large
         : DEFAULT_BOOK_IMAGE;
 
+      const categoryAssignments = [];
+      
+      // Assign categories based on subjects and title
+      if (book.subject) {
+        const subjectText = book.subject.join(' ').toLowerCase();
+        if (subjectText.includes('africa') || (book.title && book.title.toLowerCase().includes('africa'))) {
+          categoryAssignments.push('african-literature');
+        }
+        if (subjectText.includes('business') || subjectText.includes('marketing') || subjectText.includes('economics')) {
+          categoryAssignments.push('business');
+        }
+        if (subjectText.includes('health') || subjectText.includes('wellness') || subjectText.includes('fitness')) {
+          categoryAssignments.push('health');
+        }
+        if (subjectText.includes('self') || subjectText.includes('help') || subjectText.includes('improvement')) {
+          categoryAssignments.push('self-help');
+        }
+        if (subjectText.includes('poet') || subjectText.includes('poem')) {
+          categoryAssignments.push('poetry');
+        }
+        if (subjectText.includes('history') || subjectText.includes('historical')) {
+          categoryAssignments.push('history');
+        }
+      }
+      
+      // If no categories were assigned, pick a random one
+      if (categoryAssignments.length === 0) {
+        const allCategories = ['fiction', 'non-fiction', 'african-literature', 'business', 'health', 'self-help'];
+        categoryAssignments.push(allCategories[Math.floor(Math.random() * allCategories.length)]);
+      }
+
       return {
         id: book.key.replace('/works/', ''),
         title: book.title,
@@ -74,6 +117,7 @@ export async function searchOpenLibrary(query: string, limit = 30): Promise<Book
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         is_featured: Math.random() > 0.8, // 20% chance of being featured
+        categories: categoryAssignments, // Add categories for better filtering
       };
     });
 
@@ -253,6 +297,61 @@ export function getCategories(): Category[] {
       name: 'Non-Fiction',
       slug: 'non-fiction',
       created_at: new Date().toISOString()
+    },
+    {
+      id: 'self-help',
+      name: 'Self-Help',
+      slug: 'self-help',
+      created_at: new Date().toISOString()
+    },
+    {
+      id: 'business',
+      name: 'Business',
+      slug: 'business',
+      created_at: new Date().toISOString()
+    },
+    {
+      id: 'health',
+      name: 'Health',
+      slug: 'health',
+      created_at: new Date().toISOString()
     }
   ];
+}
+
+// Helper function to get books for a specific category
+export async function getCategoryBooks(categorySlug: string, limit = 10): Promise<Book[]> {
+  try {
+    // Use the mapping to get better search terms for this category
+    const searchTerm = CATEGORY_SEARCH_TERMS[categorySlug as keyof typeof CATEGORY_SEARCH_TERMS] || categorySlug;
+    
+    // Check cache first
+    const cacheKey = `category_books_${categorySlug}_${limit}`;
+    const cachedBooks = cache.books.get<Book[]>(cacheKey);
+    
+    if (cachedBooks) {
+      console.log(`Using cached books for category: ${categorySlug}`);
+      return cachedBooks;
+    }
+    
+    console.log(`Fetching books for category: ${categorySlug} with search term: ${searchTerm}`);
+    const books = await searchOpenLibrary(searchTerm, limit);
+    
+    // Filter to only include books that match this category
+    // but if none match (which shouldn't happen with our improved categorization),
+    // return all books from the search
+    const categoryBooks = books.filter(book => 
+      book.categories && book.categories.includes(categorySlug)
+    );
+    
+    const finalBooks = categoryBooks.length > 0 ? categoryBooks : books;
+    
+    // Cache the result
+    cache.books.set(cacheKey, finalBooks, cacheConfig.ttl.books);
+    
+    return finalBooks;
+  } catch (error) {
+    console.error(`Error fetching books for category ${categorySlug}:`, error);
+    return [];
+  }
 }

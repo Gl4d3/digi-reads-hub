@@ -33,7 +33,7 @@
     --input: 240 6% 20%;
     --ring: 25 95% 53%;
 
-    --radius: 0.75rem;
+    --radius: 0.5rem;
 
     --sidebar-background: 240 6% 8%;
     --sidebar-foreground: 0 0% 98%;
@@ -72,7 +72,7 @@
 
 @layer components {
   .book-card {
-    @apply relative overflow-hidden rounded-lg bg-card p-4 transition-all duration-300 hover:shadow-lg border border-border/50;
+    @apply relative overflow-hidden rounded-lg bg-card p-3 transition-all duration-300 hover:shadow-lg border border-border/50;
   }
   
   .book-card-hover {
@@ -80,7 +80,7 @@
   }
 
   .category-pill {
-    @apply px-3 py-1 rounded-full text-xs font-medium transition-colors;
+    @apply px-2 py-0.5 rounded-full text-xs font-medium transition-colors;
   }
   
   .btn-hover-effect {
@@ -89,5 +89,40 @@
   
   .cart-badge {
     @apply absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs font-bold text-white;
+  }
+  
+  /* Add responsive container sizes */
+  .container {
+    @apply mx-auto px-4;
+    max-width: 100%;
+  }
+
+  @screen sm {
+    .container {
+      max-width: 640px;
+    }
+  }
+
+  @screen md {
+    .container {
+      max-width: 768px;
+    }
+  }
+
+  @screen lg {
+    .container {
+      max-width: 1024px;
+    }
+  }
+
+  @screen xl {
+    .container {
+      max-width: 1280px;
+    }
+  }
+
+  /* Improved loading skeletons */
+  .skeleton {
+    @apply animate-pulse bg-muted rounded;
   }
 }

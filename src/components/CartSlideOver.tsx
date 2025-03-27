@@ -4,6 +4,7 @@ import { X, Trash2, Plus, Minus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCart, CartItem } from '@/context/CartContext';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/components/ui/use-toast';
 
 interface CartSlideOverProps {
   isOpen: boolean;
@@ -12,10 +13,19 @@ interface CartSlideOverProps {
 
 const CartSlideOver: React.FC<CartSlideOverProps> = ({ isOpen, onClose }) => {
   const { items, removeItem, updateQuantity, subtotal } = useCart();
+  const { toast } = useToast();
   
   // Format price to KES
   const formatPrice = (price: number) => {
     return `KES ${(price / 100).toFixed(2)}`;
+  };
+
+  const handleCheckout = () => {
+    toast({
+      title: "Checkout Initiated",
+      description: "Your order is being processed.",
+    });
+    // Would be replaced with actual checkout flow
   };
 
   return (
@@ -27,13 +37,13 @@ const CartSlideOver: React.FC<CartSlideOverProps> = ({ isOpen, onClose }) => {
     >
       <div 
         className={cn(
-          "fixed inset-y-0 right-0 z-50 w-full sm:w-96 bg-card shadow-lg border-l border-border transition-transform duration-300 ease-in-out",
+          "fixed inset-y-0 right-0 z-50 w-full sm:w-96 bg-background shadow-lg border-l border-border transition-transform duration-300 ease-in-out",
           isOpen ? "translate-x-0" : "translate-x-full"
         )}
       >
         <div className="flex flex-col h-full">
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-border">
+          <div className="flex items-center justify-between p-4 border-b border-border bg-muted/30">
             <h2 className="text-lg font-semibold">Your Cart ({items.length})</h2>
             <Button 
               variant="ghost" 
@@ -68,7 +78,7 @@ const CartSlideOver: React.FC<CartSlideOverProps> = ({ isOpen, onClose }) => {
 
           {/* Footer */}
           {items.length > 0 && (
-            <div className="border-t border-border p-4 space-y-4">
+            <div className="border-t border-border p-4 space-y-4 bg-muted/30">
               <div className="flex justify-between">
                 <span>Subtotal</span>
                 <span className="font-medium">{formatPrice(subtotal)}</span>
@@ -76,6 +86,7 @@ const CartSlideOver: React.FC<CartSlideOverProps> = ({ isOpen, onClose }) => {
               <div className="flex flex-col space-y-2">
                 <Button 
                   className="w-full bg-primary hover:bg-primary/90"
+                  onClick={handleCheckout}
                 >
                   Checkout
                 </Button>
@@ -113,17 +124,21 @@ const CartItemComponent: React.FC<CartItemComponentProps> = ({
   };
   
   return (
-    <li className="flex gap-4 p-2 border-b border-border/50">
+    <li className="flex gap-3 p-3 rounded-lg bg-card">
       <div className="w-16 h-20 overflow-hidden rounded bg-muted flex-shrink-0">
         <img 
           src={book.image_url}
           alt={book.title}
           className="w-full h-full object-cover"
+          onError={(e) => {
+            const target = e.target as HTMLImageElement;
+            target.src = '/assets/digireads-placeholder.jpg';
+          }}
         />
       </div>
       <div className="flex flex-col flex-1">
         <div className="flex justify-between">
-          <h3 className="font-medium line-clamp-1">{book.title}</h3>
+          <h3 className="font-medium line-clamp-1 text-sm">{book.title}</h3>
           <Button 
             variant="ghost" 
             size="icon" 
@@ -134,35 +149,35 @@ const CartItemComponent: React.FC<CartItemComponentProps> = ({
             <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
           </Button>
         </div>
-        <p className="text-sm text-muted-foreground">{book.author}</p>
+        <p className="text-xs text-muted-foreground">{book.author}</p>
         <div className="flex items-center justify-between mt-auto">
           <span className="text-xs inline-flex items-center rounded-full bg-secondary/30 px-2 py-0.5 text-secondary-foreground">
             {book.format}
           </span>
-          <span className="font-medium">{formatPrice(book.price)}</span>
+          <span className="font-medium text-sm">{formatPrice(book.price)}</span>
         </div>
         <div className="flex items-center justify-between mt-2">
           <div className="flex items-center border border-border rounded-md">
             <Button 
               variant="ghost" 
               size="icon" 
-              className="h-8 w-8 p-0" 
+              className="h-7 w-7 p-0" 
               onClick={() => onUpdateQuantity(book.id, quantity - 1)}
               disabled={quantity <= 1}
             >
               <Minus className="h-3 w-3" />
             </Button>
-            <span className="w-8 text-center">{quantity}</span>
+            <span className="w-6 text-center text-sm">{quantity}</span>
             <Button 
               variant="ghost" 
               size="icon" 
-              className="h-8 w-8 p-0" 
+              className="h-7 w-7 p-0" 
               onClick={() => onUpdateQuantity(book.id, quantity + 1)}
             >
               <Plus className="h-3 w-3" />
             </Button>
           </div>
-          <span className="font-medium">{formatPrice(book.price * quantity)}</span>
+          <span className="font-medium text-sm">{formatPrice(book.price * quantity)}</span>
         </div>
       </div>
     </li>

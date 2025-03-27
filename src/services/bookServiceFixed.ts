@@ -5,7 +5,8 @@ import {
   searchOpenLibrary, 
   getBookDetails, 
   generateBundles, 
-  getCategories as getOpenLibraryCategories, 
+  getCategories as getOpenLibraryCategories,
+  getCategoryBooks,
   DEFAULT_BOOK_IMAGE 
 } from './openLibraryService';
 
@@ -116,9 +117,9 @@ export async function getBooks(): Promise<Book[]> {
     console.log('Fetching all books');
     
     // Fetch and cache books from different categories
-    const categories = ['african literature', 'poetry', 'history'];
+    const categories = ['african literature', 'poetry', 'history', 'fiction', 'self-help', 'business', 'health'];
     const booksPromises = categories.map(category => 
-      searchOpenLibrary(category, 15)
+      searchOpenLibrary(category, 10)
     );
     
     const booksArrays = await Promise.all(booksPromises);
@@ -136,27 +137,8 @@ export async function getBooks(): Promise<Book[]> {
 
 export async function getBooksByCategory(categorySlug: string): Promise<Book[]> {
   try {
-    // Initialize categories
-    const categories = initializeCategories();
-    const category = categories.find(c => c.slug === categorySlug);
-    
-    if (!category) {
-      console.error(`Category not found: ${categorySlug}`);
-      return [];
-    }
-
-    // If we have cached books, filter them
-    if (booksCache) {
-      // For simplicity, we'll do a naive match based on category name in the title or description
-      // In a real app, you'd have proper categorization
-      return booksCache.filter(book => 
-        book.title.toLowerCase().includes(category.name.toLowerCase()) || 
-        (book.description && book.description.toLowerCase().includes(category.name.toLowerCase()))
-      );
-    }
-
-    // Otherwise fetch books for this category
-    return await searchOpenLibrary(category.name, 20);
+    // Use our new direct category books fetching method
+    return await getCategoryBooks(categorySlug, 20);
   } catch (error) {
     console.error('Error in getBooksByCategory:', error);
     return [];
@@ -449,6 +431,12 @@ export async function prefetchCommonData(): Promise<void> {
     // Prefetch featured books and new releases
     await getFeaturedBooks();
     await getNewReleases();
+    
+    // Prefetch books for popular categories
+    await getBooksByCategory('african-literature');
+    await getBooksByCategory('self-help');
+    await getBooksByCategory('business');
+    await getBooksByCategory('health');
     
     // Prefetch bundles
     await getBundles();

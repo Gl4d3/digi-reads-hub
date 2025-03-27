@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import Navbar from '@/components/Navbar';
 import Banner from '@/components/Banner';
@@ -5,6 +6,8 @@ import CategorySection from '@/components/CategorySection';
 import MailingListSignup from '@/components/MailingListSignup';
 import { getNewReleases, getFeaturedBooks, getBooksByCategory } from '@/services/bookServiceFixed';
 import { Book } from '@/types/supabase';
+import { ensureDataLoaded } from '@/utils/dataUtils';
+import { useToast } from '@/components/ui/use-toast';
 
 const Index = () => {
   const [newReleases, setNewReleases] = useState<Book[]>([]);
@@ -13,14 +16,19 @@ const Index = () => {
   const [businessBooks, setBusinessBooks] = useState<Book[]>([]);
   const [healthBooks, setHealthBooks] = useState<Book[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchBooks = async () => {
       setIsLoading(true);
+      
       try {
+        // Ensure data is loaded properly
+        await ensureDataLoaded();
+        
         // Fetch books by category
         const [newReleasesData, africanLit, selfHelp, business, health] = await Promise.all([
-          getNewReleases(4),
+          getNewReleases(5),
           getBooksByCategory('african-literature'),
           getBooksByCategory('self-help'),
           getBooksByCategory('business'),
@@ -28,19 +36,24 @@ const Index = () => {
         ]);
 
         setNewReleases(newReleasesData);
-        setAfricanLitBooks(africanLit.slice(0, 4));
-        setSelfHelpBooks(selfHelp.slice(0, 4));
-        setBusinessBooks(business.slice(0, 4));
-        setHealthBooks(health.slice(0, 4));
+        setAfricanLitBooks(africanLit.slice(0, 5));
+        setSelfHelpBooks(selfHelp.slice(0, 5));
+        setBusinessBooks(business.slice(0, 5));
+        setHealthBooks(health.slice(0, 5));
       } catch (error) {
         console.error('Error fetching books:', error);
+        toast({
+          title: 'Error Loading Books',
+          description: 'Could not load book data. Please try refreshing the page.',
+          variant: 'destructive',
+        });
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchBooks();
-  }, []);
+  }, [toast]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -48,7 +61,7 @@ const Index = () => {
       
       <main className="flex-1">
         {/* Hero Banner */}
-        <section className="pt-6 md:pt-8 px-4 md:px-6">
+        <section className="pt-4 md:pt-6 px-4 md:px-6">
           <div className="container">
             <Banner 
               title="Top African Poetry Collections"
@@ -89,7 +102,7 @@ const Index = () => {
         />
         
         {/* Special Offer Banner */}
-        <section className="py-8 md:py-12 px-4 md:px-6">
+        <section className="py-6 md:py-8 px-4 md:px-6">
           <div className="container">
             <Banner 
               title="Bundle & Save"
@@ -97,7 +110,7 @@ const Index = () => {
               imageUrl="https://images.unsplash.com/photo-1495446815901-a7297e633e8d?q=80&w=1000&auto=format&fit=crop"
               ctaText="View Bundles"
               ctaLink="/bundles"
-              className="min-h-[250px]"
+              className="min-h-[200px] sm:min-h-[250px]"
             />
           </div>
         </section>
@@ -122,7 +135,7 @@ const Index = () => {
         />
         
         {/* Mailing List Signup */}
-        <section className="py-12 md:py-16 px-4 md:px-6">
+        <section className="py-8 md:py-12 px-4 md:px-6">
           <div className="container max-w-screen-md">
             <MailingListSignup />
           </div>
@@ -130,52 +143,52 @@ const Index = () => {
       </main>
       
       {/* Footer */}
-      <footer className="border-t border-border mt-12">
-        <div className="container px-4 py-8 md:px-6 md:py-12">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+      <footer className="border-t border-border mt-6">
+        <div className="container px-4 py-6 md:px-6 md:py-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div>
-              <h3 className="text-lg font-semibold mb-4">DigiReads</h3>
-              <p className="text-muted-foreground">
+              <h3 className="text-base font-semibold mb-3">DigiReads</h3>
+              <p className="text-sm text-muted-foreground">
                 Your premier destination for African literature, self-help, business, and health books in both digital and print formats.
               </p>
             </div>
             
             <div>
-              <h3 className="text-lg font-semibold mb-4">Categories</h3>
-              <ul className="space-y-2">
-                <li><Link to="/category/self-help" className="text-muted-foreground hover:text-primary">Self-Help</Link></li>
-                <li><Link to="/category/african-literature" className="text-muted-foreground hover:text-primary">African Literature</Link></li>
-                <li><Link to="/category/business" className="text-muted-foreground hover:text-primary">Business</Link></li>
-                <li><Link to="/category/health" className="text-muted-foreground hover:text-primary">Health</Link></li>
+              <h3 className="text-base font-semibold mb-3">Categories</h3>
+              <ul className="space-y-1.5 text-sm">
+                <li><FooterLink to="/category/self-help">Self-Help</FooterLink></li>
+                <li><FooterLink to="/category/african-literature">African Literature</FooterLink></li>
+                <li><FooterLink to="/category/business">Business</FooterLink></li>
+                <li><FooterLink to="/category/health">Health</FooterLink></li>
               </ul>
             </div>
             
             <div>
-              <h3 className="text-lg font-semibold mb-4">Customer Service</h3>
-              <ul className="space-y-2">
-                <li><a href="/contact" className="text-muted-foreground hover:text-primary">Contact Us</a></li>
-                <li><a href="/faq" className="text-muted-foreground hover:text-primary">FAQ</a></li>
-                <li><a href="/shipping" className="text-muted-foreground hover:text-primary">Shipping Policy</a></li>
-                <li><a href="/returns" className="text-muted-foreground hover:text-primary">Returns & Refunds</a></li>
+              <h3 className="text-base font-semibold mb-3">Customer Service</h3>
+              <ul className="space-y-1.5 text-sm">
+                <li><FooterLink to="/contact">Contact Us</FooterLink></li>
+                <li><FooterLink to="/faq">FAQ</FooterLink></li>
+                <li><FooterLink to="/shipping">Shipping Policy</FooterLink></li>
+                <li><FooterLink to="/returns">Returns & Refunds</FooterLink></li>
               </ul>
             </div>
             
             <div>
-              <h3 className="text-lg font-semibold mb-4">Connect</h3>
-              <ul className="space-y-2">
-                <li><a href="#" className="text-muted-foreground hover:text-primary">Twitter</a></li>
-                <li><a href="#" className="text-muted-foreground hover:text-primary">Instagram</a></li>
-                <li><a href="#" className="text-muted-foreground hover:text-primary">Facebook</a></li>
-                <li><a href="#" className="text-muted-foreground hover:text-primary">Newsletter</a></li>
+              <h3 className="text-base font-semibold mb-3">Connect</h3>
+              <ul className="space-y-1.5 text-sm">
+                <li><FooterLink to="#">Twitter</FooterLink></li>
+                <li><FooterLink to="#">Instagram</FooterLink></li>
+                <li><FooterLink to="#">Facebook</FooterLink></li>
+                <li><FooterLink to="#">Newsletter</FooterLink></li>
               </ul>
             </div>
           </div>
           
-          <div className="border-t border-border mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
+          <div className="border-t border-border mt-6 pt-6 flex flex-col md:flex-row justify-between items-center">
             <p className="text-muted-foreground text-sm">© 2023 DigiReads. All rights reserved.</p>
-            <div className="flex space-x-4 mt-4 md:mt-0">
-              <a href="/privacy" className="text-sm text-muted-foreground hover:text-primary">Privacy Policy</a>
-              <a href="/terms" className="text-sm text-muted-foreground hover:text-primary">Terms of Service</a>
+            <div className="flex space-x-4 mt-3 md:mt-0 text-sm">
+              <FooterLink to="/privacy">Privacy Policy</FooterLink>
+              <FooterLink to="/terms">Terms of Service</FooterLink>
             </div>
           </div>
         </div>
@@ -184,8 +197,15 @@ const Index = () => {
   );
 };
 
+const FooterLink = ({ to, children }: { to: string; children: React.ReactNode }) => (
+  <Link to={to} className="text-muted-foreground hover:text-primary transition-colors">
+    {children}
+  </Link>
+);
+
 export default Index;
 
+// Helper component
 const Link = ({ to, children, className }: { to: string; children: React.ReactNode; className?: string }) => (
   <a href={to} className={className}>
     {children}

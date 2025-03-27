@@ -1,13 +1,15 @@
 
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Search, ShoppingCart, Menu, X, User, LogOut, Heart } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Search, ShoppingCart, Menu, X, User, LogOut, Heart, Home, BookOpen, Package, BookMarked } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import CartSlideOver from './CartSlideOver';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
+import { getCategories } from '@/services/bookServiceFixed';
+import { Category } from '@/types/supabase';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,10 +20,26 @@ import {
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
   const isMobile = useIsMobile();
   const { user, signOut } = useAuth();
   const { totalItems } = useCart();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      const data = await getCategories();
+      setCategories(data);
+    };
+    
+    fetchCategories();
+  }, []);
+
+  useEffect(() => {
+    // Close mobile menu when navigating
+    setIsMenuOpen(false);
+  }, [location.pathname]);
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
   const toggleCart = () => setIsCartOpen(!isCartOpen);
@@ -31,35 +49,67 @@ const Navbar = () => {
     navigate('/');
   };
 
+  // Get popular categories for the navbar
+  const mainCategories = [
+    'self-help',
+    'african-literature',
+    'business',
+    'health'
+  ];
+  
+  const popularCategories = categories.filter(cat => 
+    mainCategories.includes(cat.slug)
+  );
+
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-border/40 bg-background/80 backdrop-blur-md">
-      <div className="container flex h-16 items-center px-4 sm:px-6">
+    <header className="sticky top-0 z-40 w-full border-b border-border/40 bg-background/95 backdrop-blur-md">
+      <div className="container flex h-14 sm:h-16 items-center px-4 sm:px-6">
         <div className="flex flex-1 items-center justify-between">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
-            <span className="text-2xl font-bold text-primary animate-fade-in">
+            <BookMarked className="h-6 w-6 text-primary" />
+            <span className="text-xl font-bold text-primary animate-fade-in hidden sm:inline-block">
               DigiReads
             </span>
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className={cn(
-            "hidden md:flex items-center space-x-6",
-            isMenuOpen && isMobile ? "flex flex-col items-start absolute top-16 left-0 right-0 bg-background border-b border-border p-4 space-y-4" : ""
-          )}>
-            <Link to="/category/self-help" className="text-sm font-medium hover:text-primary transition-colors">
-              Self-Help
+          <nav className="hidden md:flex items-center space-x-1">
+            <Link to="/" className="px-3 py-2 text-sm font-medium hover:text-primary transition-colors flex items-center">
+              <Home className="mr-1.5 h-4 w-4" />
+              Home
             </Link>
-            <Link to="/category/african-literature" className="text-sm font-medium hover:text-primary transition-colors">
-              African Literature
-            </Link>
-            <Link to="/category/business" className="text-sm font-medium hover:text-primary transition-colors">
-              Business
-            </Link>
-            <Link to="/category/health" className="text-sm font-medium hover:text-primary transition-colors">
-              Health
-            </Link>
-            <Link to="/bundles" className="text-sm font-medium hover:text-primary transition-colors">
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="px-3 py-2">
+                  <BookOpen className="mr-1.5 h-4 w-4" />
+                  Categories
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="center" className="w-48">
+                {categories.map((category) => (
+                  <DropdownMenuItem key={category.id} asChild>
+                    <Link to={`/category/${category.slug}`} className="w-full">
+                      {category.name}
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            
+            {popularCategories.map(category => (
+              <Link 
+                key={category.id}
+                to={`/category/${category.slug}`} 
+                className="px-3 py-2 text-sm font-medium hover:text-primary transition-colors"
+              >
+                {category.name}
+              </Link>
+            ))}
+            
+            <Link to="/bundles" className="px-3 py-2 text-sm font-medium hover:text-primary transition-colors flex items-center">
+              <Package className="mr-1.5 h-4 w-4" />
               Bundles
             </Link>
           </nav>
@@ -71,14 +121,15 @@ const Navbar = () => {
               size="icon" 
               onClick={toggleMenu}
               aria-label="Toggle menu"
+              className="h-9 w-9"
             >
               {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </Button>
           </div>
 
           {/* Search, Auth and Cart */}
-          <div className="flex items-center space-x-4">
-            <Link to="/search" className="p-2 hover:text-primary" aria-label="Search">
+          <div className="flex items-center space-x-2">
+            <Link to="/search" className="p-2 hover:text-primary rounded-full" aria-label="Search">
               <Search className="h-5 w-5" />
             </Link>
             
@@ -88,14 +139,14 @@ const Navbar = () => {
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="rounded-full bg-muted/80"
+                    className="rounded-full h-9 w-9 bg-muted/50"
                   >
                     <User className="h-5 w-5" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem className="text-sm" asChild>
-                    <Link to="/favorites">
+                    <Link to="/favorites" className="flex items-center">
                       <Heart className="h-4 w-4 mr-2" />
                       Favorites
                     </Link>
@@ -107,7 +158,7 @@ const Navbar = () => {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <Button variant="ghost" size="sm" asChild>
+              <Button variant="outline" size="sm" asChild className="hidden sm:flex">
                 <Link to="/auth">Sign In</Link>
               </Button>
             )}
@@ -116,7 +167,7 @@ const Navbar = () => {
               variant="ghost" 
               size="icon" 
               onClick={toggleCart}
-              className="relative"
+              className="relative h-9 w-9"
               aria-label="Open cart"
             >
               <ShoppingCart className="h-5 w-5" />
@@ -133,42 +184,42 @@ const Navbar = () => {
       {/* Mobile Menu */}
       {isMenuOpen && isMobile && (
         <div className="md:hidden animate-fade-in">
-          <div className="flex flex-col space-y-4 px-4 py-6 bg-muted/50">
+          <div className="flex flex-col space-y-0.5 p-3 bg-muted/30">
             <Link 
-              to="/category/self-help" 
-              className="flex items-center p-2 text-sm font-medium hover:text-primary"
-              onClick={() => setIsMenuOpen(false)}
+              to="/" 
+              className="flex items-center p-2 text-sm font-medium hover:text-primary hover:bg-muted rounded-md"
             >
-              Self-Help
+              <Home className="mr-2 h-4 w-4" />
+              Home
             </Link>
-            <Link 
-              to="/category/african-literature" 
-              className="flex items-center p-2 text-sm font-medium hover:text-primary"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              African Literature
-            </Link>
-            <Link 
-              to="/category/business" 
-              className="flex items-center p-2 text-sm font-medium hover:text-primary"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Business
-            </Link>
-            <Link 
-              to="/category/health" 
-              className="flex items-center p-2 text-sm font-medium hover:text-primary"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Health
-            </Link>
+            
+            {categories.map((category) => (
+              <Link 
+                key={category.id}
+                to={`/category/${category.slug}`} 
+                className="flex items-center p-2 text-sm font-medium hover:text-primary hover:bg-muted rounded-md"
+              >
+                {category.name}
+              </Link>
+            ))}
+            
             <Link 
               to="/bundles" 
-              className="flex items-center p-2 text-sm font-medium hover:text-primary"
-              onClick={() => setIsMenuOpen(false)}
+              className="flex items-center p-2 text-sm font-medium hover:text-primary hover:bg-muted rounded-md"
             >
+              <Package className="mr-2 h-4 w-4" />
               Bundles
             </Link>
+            
+            {!user && (
+              <Link 
+                to="/auth" 
+                className="flex items-center p-2 text-sm font-medium hover:text-primary hover:bg-muted rounded-md mt-2"
+              >
+                <User className="mr-2 h-4 w-4" />
+                Sign In
+              </Link>
+            )}
           </div>
         </div>
       )}

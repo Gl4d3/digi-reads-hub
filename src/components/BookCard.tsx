@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -33,7 +34,7 @@ const BookCard: React.FC<BookCardProps> = ({
 
   // Format price
   const formatPrice = (price: number) => {
-    return `KES ${(price / 100).toFixed(2)}`;
+    return price === 0 ? "FREE" : `KES ${(price / 100).toFixed(2)}`;
   };
 
   // Format badge color based on format
@@ -113,8 +114,8 @@ const BookCard: React.FC<BookCardProps> = ({
       <div className="book-card-hover relative group">
         {/* New badge */}
         {isNew && (
-          <div className="absolute top-3 right-3 z-10">
-            <span className="inline-flex items-center rounded-full bg-primary/90 px-2.5 py-0.5 text-xs font-medium text-primary-foreground">
+          <div className="absolute top-2 right-2 z-10">
+            <span className="inline-flex items-center rounded-full bg-primary/90 px-2 py-0.5 text-xs font-medium text-primary-foreground">
               New
             </span>
           </div>
@@ -122,51 +123,56 @@ const BookCard: React.FC<BookCardProps> = ({
         
         {/* Favorite button */}
         {user && (
-          <div className="absolute top-3 left-3 z-10">
+          <div className="absolute top-2 left-2 z-10">
             <Button
               size="icon"
               variant="ghost"
               className={cn(
-                "h-8 w-8 rounded-full bg-white/80 backdrop-blur-sm",
+                "h-7 w-7 rounded-full bg-white/80 backdrop-blur-sm",
                 isFavorite ? "text-red-500 hover:text-red-600" : "text-muted-foreground hover:text-foreground"
               )}
               onClick={handleToggleFavorite}
               disabled={isLoadingFavorite}
             >
-              <Heart className={cn("h-4 w-4", isFavorite ? "fill-current" : "")} />
+              <Heart className={cn("h-3.5 w-3.5", isFavorite ? "fill-current" : "")} />
             </Button>
           </div>
         )}
         
         {/* Book image */}
-        <div className="relative aspect-[2/3] overflow-hidden rounded-md mb-4 bg-muted">
+        <div className="relative aspect-[2/3] overflow-hidden rounded-md mb-3 bg-muted">
           <img
             src={image_url}
             alt={title}
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
             loading="lazy"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.src = '/assets/digireads-placeholder.jpg';
+            }}
           />
         </div>
         
         {/* Book info */}
-        <div className="space-y-2">
-          <div className="flex flex-wrap gap-2">
+        <div className="space-y-1">
+          <div className="flex flex-wrap gap-1">
             <span className={cn("category-pill", formatBadgeColor(format))}>
               {format === 'both' ? 'E-book & Print' : format === 'ebook' ? 'E-book' : 'Print'}
             </span>
           </div>
           
-          <h3 className="font-medium line-clamp-1">{title}</h3>
-          <p className="text-sm text-muted-foreground">{author}</p>
+          <h3 className="font-medium text-sm line-clamp-1">{title}</h3>
+          <p className="text-xs text-muted-foreground line-clamp-1">{author}</p>
           
-          <div className="flex items-center justify-between pt-2">
-            <span className="font-bold">{formatPrice(price)}</span>
+          <div className="flex items-center justify-between pt-1">
+            <span className="font-bold text-sm">{formatPrice(price)}</span>
             <Button 
               size="sm" 
-              className="opacity-90 hover:opacity-100"
+              variant="secondary"
+              className="h-8 opacity-90 hover:opacity-100 rounded-full bg-primary text-white hover:bg-primary/90 px-3"
               onClick={handleAddToCart}
             >
-              <ShoppingCart className="mr-2 h-4 w-4" /> Add
+              <ShoppingCart className="mr-1 h-3.5 w-3.5" /> Add
             </Button>
           </div>
         </div>
