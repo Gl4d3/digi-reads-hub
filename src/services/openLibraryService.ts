@@ -50,8 +50,8 @@ export async function searchOpenLibrary(query: string, limit = 30): Promise<Book
       const price = Math.floor(Math.random() * (maxPrice - minPrice + 1)) + minPrice;
       
       // Random format assignment
-      const formats = ['ebook', 'hardcover', 'both'];
-      const format = formats[Math.floor(Math.random() * formats.length)] as 'ebook' | 'hardcover' | 'both';
+      const formats = ['ebook', 'hardcover', 'both'] as const;
+      const format = formats[Math.floor(Math.random() * formats.length)];
       
       // Check if it's a single poem (which would be free)
       const isSinglePoem = isPoetry && 

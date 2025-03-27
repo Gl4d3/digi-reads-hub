@@ -15,9 +15,9 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
 // This approach prevents TypeScript errors while allowing us to work with our virtual tables
 export const fromSupabase = {
   // Tables that exist in the actual schema (type safe)
-  favorites: () => supabase.from('favorites') as any,
-  profiles: () => supabase.from('profiles') as any,
-  search_history: () => supabase.from('search_history') as any,
+  favorites: () => supabase.from('favorites'),
+  profiles: () => supabase.from('profiles'),
+  search_history: () => supabase.from('search_history'),
   
   // Virtual tables for our book app (type assertions for non-existent tables)
   books: () => supabase.from('dr_books' as any) as any,
