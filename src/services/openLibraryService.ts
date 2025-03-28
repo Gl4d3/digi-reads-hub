@@ -1,4 +1,3 @@
-
 import { Book, Category, Bundle } from '@/types/supabase';
 import { cache } from '@/utils/cacheUtils';
 import { cacheConfig } from '@/integrations/supabase/client';
@@ -75,7 +74,7 @@ export async function searchOpenLibrary(query: string, limit = 30): Promise<Book
         ? `https://covers.openlibrary.org/b/id/${book.cover_i}-L.jpg` // L is for large
         : DEFAULT_BOOK_IMAGE;
 
-      const categoryAssignments = [];
+      const categoryAssignments: string[] = [];
       
       // Assign categories based on subjects and title
       if (book.subject) {
@@ -106,13 +105,16 @@ export async function searchOpenLibrary(query: string, limit = 30): Promise<Book
         categoryAssignments.push(allCategories[Math.floor(Math.random() * allCategories.length)]);
       }
 
+      // Make sure the format is one of the allowed values
+      const formatValue = format as 'ebook' | 'hardcover' | 'both';
+
       return {
         id: book.key.replace('/works/', ''),
         title: book.title,
         author: book.author_name?.[0] || 'Unknown Author',
         price: isSinglePoem ? 0 : price, // Free for single poems
         image_url: imageUrl,
-        format: format,
+        format: formatValue,
         description: `Published ${book.first_publish_year || 'unknown year'} by ${book.publisher?.[0] || 'unknown publisher'}.`,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),

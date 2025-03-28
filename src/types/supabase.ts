@@ -10,6 +10,7 @@ export type Book = {
   created_at: string;
   updated_at: string;
   is_featured: boolean;
+  categories?: string[]; // Add categories property to Book type
 };
 
 export type Category = {
