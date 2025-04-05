@@ -25,7 +25,7 @@ const CartSlideOver: React.FC<CartSlideOverProps> = ({ isOpen, onClose }) => {
       title: "Checkout Initiated",
       description: "Your order is being processed.",
     });
-    // This will be updated to navigate to the checkout page
+    // Navigate to the checkout page
     window.location.href = '/checkout';
   };
 
@@ -56,7 +56,7 @@ const CartSlideOver: React.FC<CartSlideOverProps> = ({ isOpen, onClose }) => {
             </Button>
           </div>
 
-          {/* Cart Items */}
+          {/* Cart Items - Improved visibility */}
           <div className="flex-1 overflow-y-auto p-4 bg-background">
             {items.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center">
@@ -125,8 +125,8 @@ const CartItemComponent: React.FC<CartItemComponentProps> = ({
   };
   
   return (
-    <li className="flex gap-3 p-3 rounded-lg bg-muted border border-border/40">
-      <div className="w-16 h-20 overflow-hidden rounded bg-card flex-shrink-0">
+    <li className="flex gap-3 p-3 rounded-lg bg-card border border-border shadow-sm">
+      <div className="w-16 h-20 overflow-hidden rounded bg-muted flex-shrink-0">
         <img 
           src={book.image_url}
           alt={book.title}
@@ -139,7 +139,7 @@ const CartItemComponent: React.FC<CartItemComponentProps> = ({
       </div>
       <div className="flex flex-col flex-1">
         <div className="flex justify-between">
-          <h3 className="font-medium line-clamp-1 text-sm">{book.title}</h3>
+          <h3 className="font-medium line-clamp-2 text-sm">{book.title}</h3>
           <Button 
             variant="ghost" 
             size="icon" 
@@ -152,13 +152,13 @@ const CartItemComponent: React.FC<CartItemComponentProps> = ({
         </div>
         <p className="text-xs text-muted-foreground">{book.author}</p>
         <div className="flex items-center justify-between mt-auto">
-          <span className="text-xs inline-flex items-center rounded-full bg-secondary/30 px-2 py-0.5 text-secondary-foreground">
+          <span className="text-xs inline-flex items-center rounded-full bg-secondary/40 px-2 py-0.5 text-primary-foreground font-medium">
             {book.format}
           </span>
           <span className="font-medium text-sm">{formatPrice(book.price)}</span>
         </div>
         <div className="flex items-center justify-between mt-2">
-          <div className="flex items-center border border-border rounded-md">
+          <div className="flex items-center border border-border rounded-md bg-background">
             <Button 
               variant="ghost" 
               size="icon" 

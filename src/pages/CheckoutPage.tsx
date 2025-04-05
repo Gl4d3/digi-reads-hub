@@ -11,10 +11,11 @@ import { useToast } from '@/components/ui/use-toast';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import { CreditCard, ShieldCheck, ArrowRight } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 const CheckoutPage: React.FC = () => {
   const { items, subtotal, clearCart } = useCart();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   
@@ -34,11 +35,22 @@ const CheckoutPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [savedAddress, setSavedAddress] = useState(null);
 
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (!isAuthenticated && !isLoading) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to proceed with checkout.",
+        variant: "destructive",
+      });
+      navigate('/auth', { state: { returnUrl: '/checkout' } });
+    }
+  }, [isAuthenticated, isLoading, navigate, toast]);
+
   useEffect(() => {
     // Load saved address from localStorage or user profile
     if (user) {
       // Here we would fetch the user's address from the database
-      // For now, we'll just simulate it with localStorage
       const savedAddressData = localStorage.getItem(`address_${user.id}`);
       if (savedAddressData) {
         setSavedAddress(JSON.parse(savedAddressData));
@@ -81,11 +93,48 @@ const CheckoutPage: React.FC = () => {
       return;
     }
     
+    if (!isAuthenticated) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to proceed with checkout.",
+        variant: "destructive",
+      });
+      navigate('/auth', { state: { returnUrl: '/checkout' } });
+      return;
+    }
+    
     setIsLoading(true);
     
     try {
-      // Here we would call our Supabase edge function to process the payment
-      // For now, let's simulate a successful payment
+      // Prepare the payment request
+      const paymentRequest = {
+        items: items.map(item => ({
+          book_id: item.book.id,
+          quantity: item.quantity,
+          price: item.book.price
+        })),
+        shipping_address: {
+          name: formData.name,
+          address: formData.address,
+          city: formData.city,
+          postal_code: formData.postalCode,
+          country: formData.country
+        },
+        total_amount: subtotal,
+        payment_method: {
+          type: 'card',
+          card_token: `sim_${Date.now()}` // In a real app, this would be a token from Stripe or similar
+        }
+      };
+      
+      // Call the edge function to process payment
+      const { data, error } = await supabase.functions.invoke('process-payment', {
+        body: paymentRequest
+      });
+      
+      if (error) {
+        throw new Error(error.message || 'Payment processing failed');
+      }
       
       // Save address for future use if user is logged in
       if (user) {
@@ -100,9 +149,6 @@ const CheckoutPage: React.FC = () => {
         localStorage.setItem(`address_${user.id}`, JSON.stringify(addressToSave));
       }
       
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
       // Clear cart and redirect to success page
       clearCart();
       
@@ -111,13 +157,18 @@ const CheckoutPage: React.FC = () => {
         description: "Thank you for your purchase.",
       });
       
-      navigate('/order-confirmation');
+      navigate('/order-confirmation', { 
+        state: { 
+          orderId: data.order_id,
+          orderStatus: data.status
+        }
+      });
       
     } catch (error) {
       console.error('Payment error:', error);
       toast({
         title: "Payment failed",
-        description: "There was an error processing your payment. Please try again.",
+        description: error.message || "There was an error processing your payment. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -128,6 +179,10 @@ const CheckoutPage: React.FC = () => {
   const formatPrice = (price: number) => {
     return `KES ${(price / 100).toFixed(2)}`;
   };
+
+  if (!isAuthenticated) {
+    return null; // Don't render anything until redirect happens
+  }
 
   return (
     <div className="min-h-screen bg-background">
