@@ -67,26 +67,26 @@ const BundleDetailPage = () => {
     });
   };
 
-  // Get style based on bundle type
+  // Get style based on bundle type with improved contrast
   const getBundleStyle = () => {
     if (!bundleId) return {};
     
     if (bundleId === 'weekly-bundle') {
       return {
-        gradientBg: 'bg-gradient-to-r from-amber-50 to-amber-100',
-        accentColor: 'text-amber-600',
+        gradientBg: 'bg-gradient-to-r from-primary/10 to-primary/20',
+        accentColor: 'text-primary',
         buttonVariant: 'default'
       };
     } else if (bundleId === 'daily-bundle') {
       return {
-        gradientBg: 'bg-gradient-to-r from-blue-50 to-blue-100',
-        accentColor: 'text-blue-600',
+        gradientBg: 'bg-gradient-to-r from-primary/10 to-primary/20',
+        accentColor: 'text-primary',
         buttonVariant: 'default'
       };
     } else {
       return {
-        gradientBg: 'bg-gradient-to-r from-purple-50 to-purple-100',
-        accentColor: 'text-purple-600',
+        gradientBg: 'bg-gradient-to-r from-primary/10 to-primary/20',
+        accentColor: 'text-primary',
         buttonVariant: 'default'
       };
     }
@@ -148,7 +148,7 @@ const BundleDetailPage = () => {
       <Navbar />
       
       {/* Hero section with bundle details */}
-      <div className={`${style.gradientBg} py-16`}>
+      <div className={`${style.gradientBg} py-16 text-foreground`}>
         <div className="container px-4 md:px-6">
           <motion.div 
             className="max-w-4xl mx-auto text-center"
@@ -156,8 +156,8 @@ const BundleDetailPage = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">{bundle.name}</h1>
-            <p className="text-xl text-muted-foreground mb-8">{bundle.description}</p>
+            <h1 className="text-4xl md:text-5xl font-bold mb-4 text-foreground">{bundle.name}</h1>
+            <p className="text-xl text-foreground mb-8">{bundle.description}</p>
             
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
               <div className="flex items-center font-medium">
@@ -174,18 +174,18 @@ const BundleDetailPage = () => {
               </div>
             </div>
             
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 inline-block">
+            <div className="bg-card dark:bg-gray-800 rounded-lg shadow-lg p-6 inline-block border border-border">
               <div className="flex flex-col sm:flex-row items-center gap-4">
                 <div className="text-center sm:text-left">
-                  <p className="text-sm text-muted-foreground">Regular Price</p>
+                  <p className="text-sm">Regular Price</p>
                   <p className="text-lg line-through text-muted-foreground">{formatPrice(originalTotal)}</p>
                 </div>
                 <div className="hidden sm:block">
-                  <ArrowRight className="h-5 w-5 text-muted-foreground" />
+                  <ArrowRight className="h-5 w-5" />
                 </div>
                 <div className="text-center sm:text-left">
-                  <p className="text-sm text-muted-foreground">Bundle Price</p>
-                  <p className="text-3xl font-bold">{formatPrice(discountedTotal)}</p>
+                  <p className="text-sm">Bundle Price</p>
+                  <p className="text-3xl font-bold text-foreground">{formatPrice(discountedTotal)}</p>
                 </div>
                 <div className="sm:ml-4">
                   <Button 
@@ -221,36 +221,36 @@ const BundleDetailPage = () => {
         
         <Separator className="my-12" />
         
-        <div className="bg-muted rounded-lg p-6 md:p-8 mt-12">
+        <div className="bg-card rounded-lg p-6 md:p-8 mt-12 border border-border">
           <h3 className="text-xl font-semibold mb-4">Bundle Details</h3>
           <ul className="space-y-2">
             <li className="flex">
-              <Bookmark className="h-5 w-5 mr-2 text-muted-foreground shrink-0" />
+              <Bookmark className="h-5 w-5 mr-2 text-primary shrink-0" />
               <span>Instant access to all {books.length} titles in this bundle</span>
             </li>
             <li className="flex">
-              <Bookmark className="h-5 w-5 mr-2 text-muted-foreground shrink-0" />
+              <Bookmark className="h-5 w-5 mr-2 text-primary shrink-0" />
               <span>Available in all supported formats (e-book and print where applicable)</span>
             </li>
             <li className="flex">
-              <Bookmark className="h-5 w-5 mr-2 text-muted-foreground shrink-0" />
+              <Bookmark className="h-5 w-5 mr-2 text-primary shrink-0" />
               <span>Save {bundle.discount_percentage}% compared to individual purchases</span>
             </li>
             {bundleId === 'weekly-bundle' && (
               <li className="flex">
-                <Bookmark className="h-5 w-5 mr-2 text-muted-foreground shrink-0" />
+                <Bookmark className="h-5 w-5 mr-2 text-primary shrink-0" />
                 <span>New selection released every Monday - get them while they're available!</span>
               </li>
             )}
             {bundleId === 'daily-bundle' && (
               <li className="flex">
-                <Bookmark className="h-5 w-5 mr-2 text-muted-foreground shrink-0" />
+                <Bookmark className="h-5 w-5 mr-2 text-primary shrink-0" />
                 <span>Perfect for daily reading and inspiration</span>
               </li>
             )}
             {bundleId === 'flash-sale-bundle' && (
               <li className="flex">
-                <Bookmark className="h-5 w-5 mr-2 text-muted-foreground shrink-0" />
+                <Bookmark className="h-5 w-5 mr-2 text-primary shrink-0" />
                 <span>Limited time offer - get this bundle before it's gone!</span>
               </li>
             )}

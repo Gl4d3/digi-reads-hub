@@ -49,18 +49,6 @@ const Navbar = () => {
     navigate('/');
   };
 
-  // Get popular categories for the navbar
-  const mainCategories = [
-    'self-help',
-    'african-literature',
-    'business',
-    'health'
-  ];
-  
-  const popularCategories = categories.filter(cat => 
-    mainCategories.includes(cat.slug)
-  );
-
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border/40 bg-background/95 backdrop-blur-md">
       <div className="container flex h-14 sm:h-16 items-center px-4 sm:px-6">
@@ -97,16 +85,6 @@ const Navbar = () => {
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-            
-            {popularCategories.map(category => (
-              <Link 
-                key={category.id}
-                to={`/category/${category.slug}`} 
-                className="px-3 py-2 text-sm font-medium hover:text-primary transition-colors"
-              >
-                {category.name}
-              </Link>
-            ))}
             
             <Link to="/bundles" className="px-3 py-2 text-sm font-medium hover:text-primary transition-colors flex items-center">
               <Package className="mr-1.5 h-4 w-4" />
@@ -184,7 +162,7 @@ const Navbar = () => {
       {/* Mobile Menu */}
       {isMenuOpen && isMobile && (
         <div className="md:hidden animate-fade-in">
-          <div className="flex flex-col space-y-0.5 p-3 bg-muted/30">
+          <div className="flex flex-col space-y-0.5 p-3 bg-card">
             <Link 
               to="/" 
               className="flex items-center p-2 text-sm font-medium hover:text-primary hover:bg-muted rounded-md"

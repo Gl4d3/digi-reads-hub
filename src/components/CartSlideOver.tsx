@@ -44,7 +44,7 @@ const CartSlideOver: React.FC<CartSlideOverProps> = ({ isOpen, onClose }) => {
       >
         <div className="flex flex-col h-full">
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-border bg-muted">
+          <div className="flex items-center justify-between p-4 border-b border-border bg-card">
             <h2 className="text-lg font-semibold">Your Cart ({items.length})</h2>
             <Button 
               variant="ghost" 
@@ -64,7 +64,7 @@ const CartSlideOver: React.FC<CartSlideOverProps> = ({ isOpen, onClose }) => {
                 <Button onClick={onClose}>Continue Shopping</Button>
               </div>
             ) : (
-              <ul className="space-y-4">
+              <ul className="space-y-4 mb-4">
                 {items.map((item) => (
                   <CartItemComponent 
                     key={item.book.id} 
@@ -79,7 +79,7 @@ const CartSlideOver: React.FC<CartSlideOverProps> = ({ isOpen, onClose }) => {
 
           {/* Footer */}
           {items.length > 0 && (
-            <div className="border-t border-border p-6 space-y-4 bg-muted sticky bottom-0 min-h-[180px]">
+            <div className="border-t border-border p-6 space-y-4 bg-card shadow-inner sticky bottom-0">
               <div className="flex justify-between text-lg">
                 <span>Subtotal</span>
                 <span className="font-medium">{formatPrice(subtotal)}</span>
@@ -125,8 +125,8 @@ const CartItemComponent: React.FC<CartItemComponentProps> = ({
   };
   
   return (
-    <li className="flex gap-3 p-3 rounded-lg bg-card">
-      <div className="w-16 h-20 overflow-hidden rounded bg-muted flex-shrink-0">
+    <li className="flex gap-3 p-3 rounded-lg bg-muted border border-border/40">
+      <div className="w-16 h-20 overflow-hidden rounded bg-card flex-shrink-0">
         <img 
           src={book.image_url}
           alt={book.title}
