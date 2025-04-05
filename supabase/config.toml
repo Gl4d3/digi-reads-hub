@@ -2,6 +2,30 @@
 project_id = "zwhhliwmyecyrtcpkkxv"
 
 [api]
-schemas = ["public", "storage"]
-extra_search_path = ["public", "extensions"]
-max_rows = 1000
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+
+[db]
+port = 54322
+
+[studio]
+enabled = true
+port = 54323
+
+[inbucket]
+enabled = true
+port = 54324
+
+[storage]
+enabled = true
+
+[auth]
+enabled = true
+
+[realtime]
+enabled = true
+
+[[functions]]
+name = "process-payment"
+verify_jwt = true

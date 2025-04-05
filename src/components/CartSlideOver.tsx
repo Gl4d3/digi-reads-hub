@@ -25,7 +25,8 @@ const CartSlideOver: React.FC<CartSlideOverProps> = ({ isOpen, onClose }) => {
       title: "Checkout Initiated",
       description: "Your order is being processed.",
     });
-    // Would be replaced with actual checkout flow
+    // This will be updated to navigate to the checkout page
+    window.location.href = '/checkout';
   };
 
   return (
@@ -43,7 +44,7 @@ const CartSlideOver: React.FC<CartSlideOverProps> = ({ isOpen, onClose }) => {
       >
         <div className="flex flex-col h-full">
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-border bg-muted/30">
+          <div className="flex items-center justify-between p-4 border-b border-border bg-muted">
             <h2 className="text-lg font-semibold">Your Cart ({items.length})</h2>
             <Button 
               variant="ghost" 
@@ -56,7 +57,7 @@ const CartSlideOver: React.FC<CartSlideOverProps> = ({ isOpen, onClose }) => {
           </div>
 
           {/* Cart Items */}
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="flex-1 overflow-y-auto p-4 bg-background">
             {items.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center">
                 <p className="text-muted-foreground mb-4">Your cart is empty</p>
@@ -78,14 +79,14 @@ const CartSlideOver: React.FC<CartSlideOverProps> = ({ isOpen, onClose }) => {
 
           {/* Footer */}
           {items.length > 0 && (
-            <div className="border-t border-border p-4 space-y-4 bg-muted/30">
-              <div className="flex justify-between">
+            <div className="border-t border-border p-6 space-y-4 bg-muted sticky bottom-0 min-h-[180px]">
+              <div className="flex justify-between text-lg">
                 <span>Subtotal</span>
                 <span className="font-medium">{formatPrice(subtotal)}</span>
               </div>
-              <div className="flex flex-col space-y-2">
+              <div className="flex flex-col space-y-3">
                 <Button 
-                  className="w-full bg-primary hover:bg-primary/90"
+                  className="w-full bg-primary hover:bg-primary/90 text-lg py-6"
                   onClick={handleCheckout}
                 >
                   Checkout

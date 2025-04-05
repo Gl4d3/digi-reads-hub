@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Book } from '@/types/supabase';
 import { Button } from '@/components/ui/button';
 import { ShoppingCart, Heart, Clock, BookOpen, Calendar, Award } from 'lucide-react';
@@ -33,6 +32,7 @@ const BookDetailPage: React.FC = () => {
   const [relatedBundles, setRelatedBundles] = useState<any[]>([]);
   const { addItem } = useCart();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -69,6 +69,10 @@ const BookDetailPage: React.FC = () => {
       title: "Added to cart",
       description: `${book.title} has been added to your cart.`,
     });
+  };
+
+  const handleViewBundle = (bundleId: string) => {
+    navigate(`/bundles/${bundleId}`);
   };
 
   if (isLoading) {
@@ -236,8 +240,11 @@ const BookDetailPage: React.FC = () => {
                     </div>
                   </CardContent>
                   <CardFooter>
-                    <Button asChild className="w-full">
-                      <Link to={`/bundles/${bundle.id}`}>View Bundle</Link>
+                    <Button 
+                      onClick={() => handleViewBundle(bundle.id)} 
+                      className="w-full"
+                    >
+                      View Bundle
                     </Button>
                   </CardFooter>
                 </Card>

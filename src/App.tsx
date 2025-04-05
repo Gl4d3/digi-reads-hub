@@ -15,6 +15,8 @@ import BookDetailPage from "./pages/BookDetailPage";
 import BundlesPage from "./pages/BundlesPage";
 import BundleDetailPage from "./pages/BundleDetailPage";
 import FavoritesPage from "./pages/FavoritesPage";
+import CheckoutPage from "./pages/CheckoutPage";
+import OrderConfirmationPage from "./pages/OrderConfirmationPage";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +37,8 @@ const App = () => (
               <Route path="/bundles" element={<BundlesPage />} />
               <Route path="/bundles/:bundleId" element={<BundleDetailPage />} />
               <Route path="/favorites" element={<FavoritesPage />} />
+              <Route path="/checkout" element={<CheckoutPage />} />
+              <Route path="/order-confirmation" element={<OrderConfirmationPage />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
