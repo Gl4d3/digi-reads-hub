@@ -2,13 +2,13 @@
 
 ## Project Info
 
+![Digi-Reads Screenshot](DigiReads.png)
+
 **URL**: [Digi-Reads Website](https://digi-reads.vercel.app/)
 
 ## About Digi-Reads
 
 Digi-Reads is a platform dedicated to providing a vast collection of digital books and reading resources. Whether you are looking for fiction, non-fiction, educational materials, or just some leisure reading, Digi-Reads has something for everyone.
-
-![Digi-Reads Screenshot](https://user-images.githubusercontent.com/739/1251/poetry-collections.png)
 
 ## Tech Stack
 
@@ -24,10 +24,13 @@ The Digi-Reads Hub is built using the following technologies:
   
 - **Database**:
   - ![MongoDB](https://img.shields.io/badge/-MongoDB-47A248?logo=mongodb&logoColor=white) MongoDB: For storing book data, user information, and other relevant data.
-  
-- **Others**:
-  - ![GitHub Actions](https://img.shields.io/badge/-GitHub%20Actions-2088FF?logo=github-actions&logoColor=white) GitHub Actions: For continuous integration and continuous deployment (CI/CD) workflows.
-  - ![Docker](https://img.shields.io/badge/-Docker-2496ED?logo=docker&logoColor=white) Docker: For containerizing the application and ensuring consistency across different environments.
+
+## How It works
+DigiRead works with the openLibrary API to fetch books based on different categories and list them on the website with a corresponding price attached to it. It features:
+  - Payment System using Stripe
+  - Supabase Backend for Databases and queries
+  - Responsive UI for book listing
+  - AutoRefresh books 
 
 ## Contributing
 
