@@ -124,6 +124,12 @@ const Navbar = () => {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem className="text-sm" asChild>
+                    <Link to="/profile" className="flex items-center">
+                      <User className="h-4 w-4 mr-2" />
+                      My Account
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="text-sm" asChild>
                     <Link to="/favorites" className="flex items-center">
                       <Heart className="h-4 w-4 mr-2" />
                       Favorites
@@ -189,7 +195,24 @@ const Navbar = () => {
               Bundles
             </Link>
             
-            {!user && (
+            {user ? (
+              <>
+                <Link 
+                  to="/profile" 
+                  className="flex items-center p-2 text-sm font-medium hover:text-primary hover:bg-muted rounded-md mt-2"
+                >
+                  <User className="mr-2 h-4 w-4" />
+                  My Account
+                </Link>
+                <Link 
+                  to="/favorites" 
+                  className="flex items-center p-2 text-sm font-medium hover:text-primary hover:bg-muted rounded-md"
+                >
+                  <Heart className="mr-2 h-4 w-4" />
+                  Favorites
+                </Link>
+              </>
+            ) : (
               <Link 
                 to="/auth" 
                 className="flex items-center p-2 text-sm font-medium hover:text-primary hover:bg-muted rounded-md mt-2"

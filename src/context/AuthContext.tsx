@@ -12,6 +12,7 @@ type AuthContextType = {
   signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   isAuthenticated: boolean;
+  updateProfile: (data: { first_name?: string; last_name?: string }) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -113,6 +114,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const updateProfile = async (data: { first_name?: string; last_name?: string }) => {
+    if (!user) {
+      throw new Error('Not authenticated');
+    }
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update(data)
+        .eq('id', user.id);
+      
+      if (error) {
+        throw error;
+      }
+      
+      toast({
+        title: "Profile updated",
+        description: "Your profile has been updated successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Update failed",
+        description: error.message || "An error occurred while updating your profile",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
   const value = {
     user,
     session,
@@ -121,6 +151,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signUp,
     signOut,
     isAuthenticated: !!user,
+    updateProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -89,3 +89,20 @@ export type PaymentMethod = {
   is_default: boolean;
   created_at: string;
 };
+
+export type BookReview = {
+  id: string;
+  user_id: string;
+  book_id: string;
+  rating: number;
+  comment: string;
+  created_at: string;
+};
+
+export type UserProfile = {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  created_at: string;
+  updated_at: string;
+};
