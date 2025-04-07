@@ -1,9 +1,10 @@
+
 // This file contains the implementation of the book service
 // Replace with proper Supabase calls and fetch data from actual tables
 
 import { supabase } from '@/integrations/supabase/client';
 import { books } from '@/data/books';
-import { Book, Category, Favorite } from '@/types/supabase';
+import { Book, Category, Favorite, BookReview } from '@/types/supabase';
 import { fromSupabase, cacheConfig } from '@/integrations/supabase/client';
 
 // Mock data for now - In a real app this would come from Supabase
@@ -87,6 +88,26 @@ export const getFavorites = async (userId: string): Promise<Book[]> => {
   }
 };
 
+export const toggleFavorite = async (bookId: string, userId: string): Promise<boolean> => {
+  try {
+    // Check if the book is already a favorite
+    const isFavorite = await checkIsFavorite(bookId, userId);
+    
+    if (isFavorite) {
+      // Remove from favorites
+      await removeFromFavorites(userId, bookId);
+    } else {
+      // Add to favorites
+      await addToFavorites(userId, bookId);
+    }
+    
+    return !isFavorite;
+  } catch (error) {
+    console.error('Error toggling favorite status:', error);
+    return false;
+  }
+};
+
 export const addToFavorites = async (userId: string, bookId: string): Promise<boolean> => {
   try {
     // In a real implementation, this would add to Supabase
@@ -109,7 +130,7 @@ export const removeFromFavorites = async (userId: string, bookId: string): Promi
   }
 };
 
-export const checkIsFavorite = async (userId: string, bookId: string): Promise<boolean> => {
+export const checkIsFavorite = async (bookId: string, userId: string): Promise<boolean> => {
   try {
     // In a real implementation, this would check Supabase
     return Math.random() > 0.5; // Randomly return true or false for demo purposes
@@ -142,5 +163,97 @@ export const getRecommendedBooks = async (bookId: string, limit: number = 4): Pr
   } catch (error) {
     console.error('Error getting recommended books:', error);
     return [];
+  }
+};
+
+// Adding missing functions that are imported elsewhere
+
+export const getBundles = async () => {
+  try {
+    // Mock implementation - in a real app, this would fetch from Supabase
+    return [
+      {
+        id: 'bundle-1',
+        name: 'Beginner\'s Reading Bundle',
+        description: 'Perfect for new readers',
+        discount_percentage: 15,
+        image_url: '/assets/digireads-placeholder.jpg',
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      },
+      {
+        id: 'bundle-2',
+        name: 'Business Success Bundle',
+        description: 'Essential books for entrepreneurs',
+        discount_percentage: 20,
+        image_url: '/assets/digireads-placeholder.jpg',
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+    ];
+  } catch (error) {
+    console.error('Error fetching bundles:', error);
+    return [];
+  }
+};
+
+export const getBundleWithBooks = async (bundleId: string) => {
+  try {
+    // Mock implementation - in a real app, this would fetch from Supabase
+    const allBooks = await getBooks();
+    const randomBooks = allBooks.slice(0, 4); // Get first 4 books as sample
+    
+    return {
+      bundle: {
+        id: bundleId,
+        name: bundleId === 'bundle-1' ? 'Beginner\'s Reading Bundle' : 'Business Success Bundle',
+        description: 'A carefully selected collection of books',
+        discount_percentage: 15,
+        image_url: '/assets/digireads-placeholder.jpg',
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      },
+      books: randomBooks
+    };
+  } catch (error) {
+    console.error(`Error fetching bundle with ID ${bundleId}:`, error);
+    return null;
+  }
+};
+
+export const subscribeToMailingList = async (email: string, firstName?: string): Promise<boolean> => {
+  try {
+    // Mock implementation - in a real app, this would call an API or insert to Supabase
+    console.log(`Subscribing to mailing list: ${email}, ${firstName || 'No name provided'}`);
+    // Simulate network delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return true;
+  } catch (error) {
+    console.error('Error subscribing to mailing list:', error);
+    return false;
+  }
+};
+
+export const clearAllCaches = () => {
+  console.log('Clearing all caches');
+  // In a real implementation, this would clear cached data
+};
+
+export const prefetchCommonData = async () => {
+  console.log('Prefetching common data');
+  try {
+    // Prefetch data that's commonly needed
+    await Promise.all([
+      getCategories(),
+      getFeaturedBooks(),
+      getNewReleases()
+    ]);
+    return true;
+  } catch (error) {
+    console.error('Error prefetching common data:', error);
+    return false;
   }
 };

@@ -1,7 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
@@ -12,14 +11,9 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { BookReview } from '@/types/supabase';
 
-interface Review {
-  id: string;
-  user_id: string;
-  book_id: string;
-  rating: number;
-  comment: string;
-  created_at: string;
+interface ReviewWithUser extends BookReview {
   user_name?: string;
 }
 
@@ -28,7 +22,7 @@ interface BookReviewsProps {
 }
 
 const BookReviews: React.FC<BookReviewsProps> = ({ bookId }) => {
-  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviews, setReviews] = useState<ReviewWithUser[]>([]);
   const [newReview, setNewReview] = useState('');
   const [rating, setRating] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -38,32 +32,32 @@ const BookReviews: React.FC<BookReviewsProps> = ({ bookId }) => {
 
   const fetchReviews = async () => {
     try {
-      const { data, error } = await supabase
-        .from('book_reviews')
-        .select(`
-          id, 
-          user_id, 
-          book_id, 
-          rating, 
-          comment, 
-          created_at,
-          profiles:user_id (first_name, last_name)
-        `)
-        .eq('book_id', bookId)
-        .order('created_at', { ascending: false });
+      // Since the book_reviews table doesn't exist yet, we're using mock data
+      // This will prevent the type errors from the Supabase query
       
-      if (error) throw error;
+      // Mock data for reviews
+      const mockReviews: ReviewWithUser[] = [
+        {
+          id: '1',
+          user_id: 'user1',
+          book_id: bookId,
+          rating: 5,
+          comment: 'This book was amazing! The storytelling was captivating from start to finish.',
+          created_at: '2023-04-01T12:00:00Z',
+          user_name: 'John Doe'
+        },
+        {
+          id: '2',
+          user_id: 'user2',
+          book_id: bookId,
+          rating: 4,
+          comment: 'Great read, but I felt the ending was a bit rushed.',
+          created_at: '2023-03-28T14:30:00Z',
+          user_name: 'Alice Smith'
+        }
+      ];
       
-      // Format the data to include user names
-      const formattedReviews = data.map(review => ({
-        ...review,
-        user_name: review.profiles ? 
-          `${review.profiles.first_name || ''} ${review.profiles.last_name || ''}`.trim() || 
-          'Anonymous User' : 
-          'Anonymous User'
-      }));
-      
-      setReviews(formattedReviews);
+      setReviews(mockReviews);
     } catch (error) {
       console.error('Error fetching reviews:', error);
     } finally {
@@ -72,31 +66,8 @@ const BookReviews: React.FC<BookReviewsProps> = ({ bookId }) => {
   };
 
   useEffect(() => {
-    // We'll simulate reviews for now since we haven't created the table yet
-    setReviews([
-      {
-        id: '1',
-        user_id: 'user1',
-        book_id: bookId,
-        rating: 5,
-        comment: 'This book was amazing! The storytelling was captivating from start to finish.',
-        created_at: '2023-04-01T12:00:00Z',
-        user_name: 'John Doe'
-      },
-      {
-        id: '2',
-        user_id: 'user2',
-        book_id: bookId,
-        rating: 4,
-        comment: 'Great read, but I felt the ending was a bit rushed.',
-        created_at: '2023-03-28T14:30:00Z',
-        user_name: 'Alice Smith'
-      }
-    ]);
-    setIsLoading(false);
-    
-    // Uncomment this when the book_reviews table is created
-    // fetchReviews();
+    // We'll use our mock data function
+    fetchReviews();
   }, [bookId]);
 
   const handleSubmitReview = async (e: React.FormEvent) => {
@@ -123,22 +94,8 @@ const BookReviews: React.FC<BookReviewsProps> = ({ bookId }) => {
     setIsSubmitting(true);
     
     try {
-      // This is a placeholder for when the book_reviews table is created
-      /* 
-      const { error } = await supabase
-        .from('book_reviews')
-        .insert({
-          user_id: user?.id,
-          book_id: bookId,
-          rating,
-          comment: newReview.trim(),
-        });
-      
-      if (error) throw error;
-      */
-      
       // Mock implementation
-      const newReviewObj = {
+      const newReviewObj: ReviewWithUser = {
         id: `temp-${Date.now()}`,
         user_id: user?.id || 'unknown',
         book_id: bookId,
@@ -156,9 +113,6 @@ const BookReviews: React.FC<BookReviewsProps> = ({ bookId }) => {
         title: 'Review Submitted',
         description: 'Your review has been submitted successfully',
       });
-      
-      // When the table is created, use this instead:
-      // await fetchReviews();
     } catch (error) {
       console.error('Error submitting review:', error);
       toast({

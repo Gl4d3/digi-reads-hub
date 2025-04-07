@@ -1,6 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { Order } from '@/types/supabase';
+import { Order, ShippingAddress } from '@/types/supabase';
 
 /**
  * Get orders for a specific user
@@ -18,7 +18,11 @@ export const getUserOrders = async (userId: string): Promise<Order[]> => {
       throw error;
     }
     
-    return data || [];
+    // Convert shipping_address JSON to ShippingAddress type
+    return data?.map(order => ({
+      ...order,
+      shipping_address: order.shipping_address as unknown as ShippingAddress
+    })) || [];
   } catch (error) {
     console.error('Error in getUserOrders:', error);
     return [];
@@ -41,7 +45,11 @@ export const getOrderById = async (orderId: string): Promise<Order | null> => {
       throw error;
     }
     
-    return data;
+    // Convert shipping_address JSON to ShippingAddress type
+    return data ? {
+      ...data,
+      shipping_address: data.shipping_address as unknown as ShippingAddress
+    } : null;
   } catch (error) {
     console.error('Error in getOrderById:', error);
     return null;
