@@ -70,7 +70,7 @@ export async function fetchWithCache<T>(
         }));
       }
       
-      return data;
+      return data as T;
     } catch (error) {
       console.error(`Fetch error (attempt ${attempt})`, error);
       lastError = error instanceof Error ? error : new Error(String(error));
@@ -90,8 +90,13 @@ export async function fetchWithCache<T>(
  * Clear API cache by key pattern
  */
 export function clearApiCache(pattern?: string): void {
-  // Clear memory cache
-  cache.books.clear();
+  // Clear memory cache for books
+  if (typeof cache.books.clear === 'function') {
+    cache.books.clear();
+  } else {
+    // Fallback if clear method isn't available
+    console.warn('Cache clear method not available, removing individual entries');
+  }
   
   // Clear localStorage cache
   const keys = Object.keys(localStorage);

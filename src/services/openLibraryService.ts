@@ -1,3 +1,4 @@
+
 import { Book, Category, Bundle } from '@/types/supabase';
 import { cache } from '@/utils/cacheUtils';
 import { cacheConfig } from '@/integrations/supabase/client';
@@ -20,6 +21,13 @@ const CATEGORY_SEARCH_TERMS = {
   'non-fiction': 'non-fiction essays journalism',
 };
 
+// Define OpenLibrary response types for type safety
+interface OpenLibrarySearchResponse {
+  docs: OpenLibraryBook[];
+  numFound: number;
+  start: number;
+}
+
 type OpenLibraryBook = {
   key: string;
   title: string;
@@ -29,6 +37,21 @@ type OpenLibraryBook = {
   publisher?: string[];
   subject?: string[];
 };
+
+interface OpenLibraryBookDetails {
+  key: string;
+  title: string;
+  authors?: { author: { key: string } }[];
+  covers?: number[];
+  description?: string | { value: string };
+  subjects?: string[];
+}
+
+interface OpenLibraryAuthor {
+  key: string;
+  name: string;
+  bio?: string | { value: string };
+}
 
 export async function searchOpenLibrary(query: string, limit = 30): Promise<Book[]> {
   try {
@@ -43,7 +66,7 @@ export async function searchOpenLibrary(query: string, limit = 30): Promise<Book
     console.log(`Fetching books from OpenLibrary for query: ${query}`);
     
     // Use enhanced fetch with caching and retries
-    const data = await fetchWithCache(
+    const data = await fetchWithCache<OpenLibrarySearchResponse>(
       `${API_BASE_URL}/search.json?q=${encodeURIComponent(query)}&limit=${limit}`,
       {},
       `ol_search_${query}_${limit}`,
@@ -150,7 +173,7 @@ export async function getBookDetails(bookId: string): Promise<Book | null> {
     }
 
     console.log(`Fetching book details from OpenLibrary: ${bookId}`);
-    const data = await fetchWithCache(
+    const data = await fetchWithCache<OpenLibraryBookDetails>(
       `${API_BASE_URL}/works/${bookId}.json`,
       {},
       `ol_book_${bookId}`,
@@ -158,10 +181,10 @@ export async function getBookDetails(bookId: string): Promise<Book | null> {
     );
     
     // Fetch author info if available
-    let authorData = null;
-    if (data.authors?.[0]?.author) {
+    let authorData: OpenLibraryAuthor | null = null;
+    if (data.authors?.[0]?.author?.key) {
       const authorKey = data.authors[0].author.key;
-      authorData = await fetchWithCache(
+      authorData = await fetchWithCache<OpenLibraryAuthor>(
         `${API_BASE_URL}${authorKey}.json`,
         {},
         `ol_author_${authorKey.split('/').pop()}`,
@@ -192,7 +215,15 @@ export async function getBookDetails(bookId: string): Promise<Book | null> {
       : formats[Math.floor(Math.random() * formats.length)];
     
     // Construct description with author bio if available
-    let description = data.description?.value || data.description || 'No description available.';
+    let description = '';
+    if (typeof data.description === 'string') {
+      description = data.description;
+    } else if (data.description?.value) {
+      description = data.description.value;
+    } else {
+      description = 'No description available.';
+    }
+    
     if (authorData?.bio) {
       const authorBio = typeof authorData.bio === 'string' 
         ? authorData.bio 
@@ -210,10 +241,10 @@ export async function getBookDetails(bookId: string): Promise<Book | null> {
       imageUrl = getOptimizedImageUrl(`https://covers.openlibrary.org/b/id/${data.covers[0]}-L.jpg`);
     }
     
-    const book = {
+    const book: Book = {
       id: bookId,
       title: data.title,
-      author: authorData?.name || data.authors?.[0]?.name || 'Unknown Author',
+      author: authorData?.name || (data.authors?.[0]?.author?.key ? 'Unknown Author' : 'Unknown Author'),
       price: price,
       image_url: imageUrl,
       format: format,
