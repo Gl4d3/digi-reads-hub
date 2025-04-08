@@ -31,6 +31,7 @@ const SearchPage = () => {
       // Log search to history if user is logged in
       if (user) {
         try {
+          // Fix: Properly handle the Promise with then/catch
           supabase
             .from('search_history')
             .insert([
