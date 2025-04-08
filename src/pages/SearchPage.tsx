@@ -31,14 +31,16 @@ const SearchPage = () => {
       // Log search to history if user is logged in
       if (user) {
         try {
-          // Fix: Properly handle the Promise with then/catch
-          supabase
+          // Fix: Use Promise.then() instead of then/catch chain
+          void supabase
             .from('search_history')
             .insert([
               { user_id: user.id, query: searchQuery.trim() }
             ])
-            .then(() => console.log('Search logged to history'))
-            .catch(err => console.error('Failed to log search', err));
+            .then(
+              () => console.log('Search logged to history'),
+              (err) => console.error('Failed to log search', err)
+            );
         } catch (error) {
           console.error('Error logging search:', error);
         }
