@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
@@ -25,7 +26,8 @@ const FavoritesPage = () => {
       
       setIsLoading(true);
       try {
-        const data = await getFavorites(user.id);
+        // Remove the user.id parameter
+        const data = await getFavorites();
         setFavorites(data);
       } catch (error) {
         console.error('Error fetching favorites:', error);

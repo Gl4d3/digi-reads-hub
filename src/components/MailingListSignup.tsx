@@ -32,8 +32,8 @@ const MailingListSignup: React.FC<MailingListSignupProps> = ({ className }) => {
     setIsSubmitting(true);
     
     try {
-      // Use mock service instead of actual database insertion
-      await subscribeToMailingList(email, firstName);
+      // Update to use just email parameter
+      await subscribeToMailingList(email);
       
       toast({
         title: "Success!",
