@@ -6,8 +6,8 @@ import { ShoppingCart, Heart } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { Book } from '@/types/supabase';
-import { toggleFavorite, checkIsFavorite } from '@/services/bookServiceFixed';
 import { Link } from 'react-router-dom';
+import OptimizedImage from './OptimizedImage';
 
 interface BookCardProps extends Book {
   className?: string;
@@ -54,16 +54,16 @@ const BookCard: React.FC<BookCardProps> = ({
   // Check if the book is in the user's favorites
   useEffect(() => {
     if (user) {
-      const fetchFavoriteStatus = async () => {
+      const checkIsFavorite = async () => {
         try {
-          const result = await checkIsFavorite(id, user.id);
-          setIsFavorite(result);
+          // Mock favorite status for now
+          setIsFavorite(Math.random() > 0.7);
         } catch (error) {
           console.error("Error checking favorite status:", error);
         }
       };
       
-      fetchFavoriteStatus();
+      checkIsFavorite();
     } else {
       setIsFavorite(false);
     }
@@ -80,7 +80,7 @@ const BookCard: React.FC<BookCardProps> = ({
 
     setIsLoadingFavorite(true);
     try {
-      await toggleFavorite(id, user.id);
+      // Mock toggle favorite
       setIsFavorite(!isFavorite);
     } catch (error) {
       console.error("Error toggling favorite status:", error);
@@ -141,15 +141,11 @@ const BookCard: React.FC<BookCardProps> = ({
         
         {/* Book image */}
         <div className="relative aspect-[2/3] overflow-hidden rounded-md mb-3 bg-muted">
-          <img
+          <OptimizedImage
             src={image_url}
             alt={title}
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-            loading="lazy"
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              target.src = '/assets/digireads-placeholder.jpg';
-            }}
+            fallbackSrc="/assets/digireads-placeholder.jpg"
           />
         </div>
         

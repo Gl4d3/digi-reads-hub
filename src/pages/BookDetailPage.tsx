@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
@@ -11,6 +10,8 @@ import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import RecommendedBooks from '@/components/RecommendedBooks';
 import BookReviews from '@/components/BookReviews';
+import OptimizedImage from '@/components/OptimizedImage';
+import { preloadImages } from '@/utils/imageUtils';
 
 const BookDetailPage = () => {
   const { bookId } = useParams<{ bookId: string }>();
@@ -35,6 +36,13 @@ const BookDetailPage = () => {
           return;
         }
         setBook(bookData);
+        
+        // Prefetch related books in the background
+        if (bookData.categories?.[0]) {
+          // Prefetch recommended books for better UX
+          fetch(`/api/books/category/${bookData.categories[0]}?limit=4`)
+            .catch(() => {/* Silently fail - this is just prefetching */});
+        }
       } catch (error) {
         console.error('Error fetching book details:', error);
         toast({
@@ -82,7 +90,6 @@ const BookDetailPage = () => {
     });
   };
 
-  // Format price to KES
   const formatPrice = (price: number) => {
     return `KES ${(price / 100).toFixed(2)}`;
   };
@@ -160,15 +167,11 @@ const BookDetailPage = () => {
           {/* Book Cover */}
           <div className="flex justify-center lg:justify-end">
             <div className="aspect-[3/4] max-w-md w-full overflow-hidden rounded-lg shadow-lg border border-border bg-muted/30">
-              <img 
-                src={book.image_url || '/assets/digireads-placeholder.jpg'} 
-                alt={book.title} 
+              <OptimizedImage
+                src={book.image_url || '/assets/digireads-placeholder.jpg'}
+                alt={book.title}
                 className="object-contain w-full h-full"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.onerror = null;
-                  target.src = '/assets/digireads-placeholder.jpg';
-                }}
+                priority={true}
               />
             </div>
           </div>
@@ -243,10 +246,8 @@ const BookDetailPage = () => {
           </div>
         </div>
         
-        {/* Book Reviews */}
         <BookReviews bookId={book.id} />
         
-        {/* Recommended Books */}
         <div className="mt-16">
           <RecommendedBooks 
             categorySlug={book.categories?.[0] || 'african-literature'}

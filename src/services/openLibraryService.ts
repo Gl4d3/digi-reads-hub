@@ -1,6 +1,8 @@
 import { Book, Category, Bundle } from '@/types/supabase';
 import { cache } from '@/utils/cacheUtils';
 import { cacheConfig } from '@/integrations/supabase/client';
+import { fetchWithCache, clearApiCache } from '@/utils/apiUtils';
+import { preloadImages, getOptimizedImageUrl } from '@/utils/imageUtils';
 
 // Default fallback image if no image is available
 export const DEFAULT_BOOK_IMAGE = '/assets/digireads-placeholder.jpg';
@@ -39,13 +41,14 @@ export async function searchOpenLibrary(query: string, limit = 30): Promise<Book
     }
 
     console.log(`Fetching books from OpenLibrary for query: ${query}`);
-    const response = await fetch(`${API_BASE_URL}/search.json?q=${encodeURIComponent(query)}&limit=${limit}`);
     
-    if (!response.ok) {
-      throw new Error(`Failed to fetch from OpenLibrary: ${response.statusText}`);
-    }
-    
-    const data = await response.json();
+    // Use enhanced fetch with caching and retries
+    const data = await fetchWithCache(
+      `${API_BASE_URL}/search.json?q=${encodeURIComponent(query)}&limit=${limit}`,
+      {},
+      `ol_search_${query}_${limit}`,
+      cacheConfig.ttl.search
+    );
     
     // Transform OpenLibrary books to our Book format
     const books = data.docs.map((book: OpenLibraryBook) => {
@@ -69,9 +72,9 @@ export async function searchOpenLibrary(query: string, limit = 30): Promise<Book
         (book.title.toLowerCase().includes('poem') && !book.title.toLowerCase().includes('poems') || 
          book.title.toLowerCase().includes('poetry') && book.title.length < 30);
       
-      // Get higher quality image when available
+      // Get higher quality image when available and optimize it
       const imageUrl = book.cover_i 
-        ? `https://covers.openlibrary.org/b/id/${book.cover_i}-L.jpg` // L is for large
+        ? getOptimizedImageUrl(`https://covers.openlibrary.org/b/id/${book.cover_i}-L.jpg`) // L is for large
         : DEFAULT_BOOK_IMAGE;
 
       const categoryAssignments: string[] = [];
@@ -126,6 +129,9 @@ export async function searchOpenLibrary(query: string, limit = 30): Promise<Book
     // Store in cache
     cache.search.set(cacheKey, books, cacheConfig.ttl.search);
     
+    // Preload images in the background
+    preloadImages(books.map(book => book.image_url));
+    
     return books;
   } catch (error) {
     console.error('Error fetching from OpenLibrary:', error);
@@ -144,22 +150,23 @@ export async function getBookDetails(bookId: string): Promise<Book | null> {
     }
 
     console.log(`Fetching book details from OpenLibrary: ${bookId}`);
-    const response = await fetch(`${API_BASE_URL}/works/${bookId}.json`);
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch book details: ${response.statusText}`);
-    }
-    
-    const data = await response.json();
+    const data = await fetchWithCache(
+      `${API_BASE_URL}/works/${bookId}.json`,
+      {},
+      `ol_book_${bookId}`,
+      cacheConfig.ttl.books
+    );
     
     // Fetch author info if available
     let authorData = null;
     if (data.authors?.[0]?.author) {
       const authorKey = data.authors[0].author.key;
-      const authorResponse = await fetch(`${API_BASE_URL}${authorKey}.json`);
-      if (authorResponse.ok) {
-        authorData = await authorResponse.json();
-      }
+      authorData = await fetchWithCache(
+        `${API_BASE_URL}${authorKey}.json`,
+        {},
+        `ol_author_${authorKey.split('/').pop()}`,
+        cacheConfig.ttl.books
+      );
     }
     
     // Determine if it's poetry
@@ -196,11 +203,11 @@ export async function getBookDetails(bookId: string): Promise<Book | null> {
       }
     }
     
-    // Get highest quality cover image
+    // Get highest quality cover image and optimize it
     let imageUrl = DEFAULT_BOOK_IMAGE;
     if (data.covers && data.covers.length > 0) {
       // Try to get the best cover
-      imageUrl = `https://covers.openlibrary.org/b/id/${data.covers[0]}-L.jpg`;
+      imageUrl = getOptimizedImageUrl(`https://covers.openlibrary.org/b/id/${data.covers[0]}-L.jpg`);
     }
     
     const book = {
@@ -218,6 +225,9 @@ export async function getBookDetails(bookId: string): Promise<Book | null> {
 
     // Store in both memory and localStorage caches
     cache.books.setWithLocalStorage(cacheKey, book, cacheConfig.ttl.books);
+    
+    // Preload the book image
+    preloadImages([imageUrl]);
     
     return book;
   } catch (error) {
@@ -321,7 +331,9 @@ export function getCategories(): Category[] {
   ];
 }
 
-// Helper function to get books for a specific category
+/**
+ * Helper function to get books for a specific category with improved caching and prefetching
+ */
 export async function getCategoryBooks(categorySlug: string, limit = 10): Promise<Book[]> {
   try {
     // Use the mapping to get better search terms for this category
@@ -333,6 +345,8 @@ export async function getCategoryBooks(categorySlug: string, limit = 10): Promis
     
     if (cachedBooks) {
       console.log(`Using cached books for category: ${categorySlug}`);
+      // Preload images in the background even for cached results
+      preloadImages(cachedBooks.map(book => book.image_url));
       return cachedBooks;
     }
     
@@ -356,4 +370,22 @@ export async function getCategoryBooks(categorySlug: string, limit = 10): Promis
     console.error(`Error fetching books for category ${categorySlug}:`, error);
     return [];
   }
+}
+
+/**
+ * Clear all OpenLibrary caches
+ */
+export function clearOpenLibraryCache(): void {
+  clearApiCache('ol_');
+}
+
+/**
+ * Prefetch category data for smoother navigation
+ */
+export function prefetchCategories(categories: string[]): void {
+  categories.forEach(category => {
+    getCategoryBooks(category, 5).catch(err => 
+      console.warn(`Failed to prefetch category ${category}:`, err)
+    );
+  });
 }
