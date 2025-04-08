@@ -1,11 +1,12 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import BookCard from './BookCard';
 import { Link } from 'react-router-dom';
 import { Book } from '@/types/supabase';
 import { ChevronRight } from 'lucide-react';
+import { Pagination, PaginationContent, PaginationItem, PaginationLink } from '@/components/ui/pagination';
 
 interface CategorySectionProps {
   title: string;
@@ -14,6 +15,10 @@ interface CategorySectionProps {
   books: Book[];
   className?: string;
   isLoading?: boolean;
+  totalBooks?: number;
+  currentPage?: number;
+  onPageChange?: (page: number) => void;
+  limit?: number;
 }
 
 const CategorySection: React.FC<CategorySectionProps> = ({
@@ -23,7 +28,43 @@ const CategorySection: React.FC<CategorySectionProps> = ({
   books,
   className,
   isLoading = false,
+  totalBooks = 0,
+  currentPage = 1,
+  onPageChange,
+  limit = 5,
 }) => {
+  // Display pagination if there's more than one page of books
+  const totalPages = Math.ceil(totalBooks / limit);
+  const showPagination = onPageChange && totalPages > 1;
+  
+  // Calculate which page numbers to display
+  const getPageNumbers = () => {
+    if (totalPages <= 5) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    
+    let pages: (number | string)[] = [1];
+    
+    if (currentPage > 3) {
+      pages.push('...');
+    }
+    
+    const start = Math.max(2, currentPage - 1);
+    const end = Math.min(totalPages - 1, currentPage + 1);
+    
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+    
+    if (currentPage < totalPages - 2) {
+      pages.push('...');
+    }
+    
+    pages.push(totalPages);
+    
+    return pages;
+  };
+
   return (
     <section className={cn("py-6 md:py-10", className)}>
       <div className="container px-4 md:px-6">
@@ -60,11 +101,40 @@ const CategorySection: React.FC<CategorySectionProps> = ({
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
-            {books.map((book) => (
-              <BookCard key={book.id} {...book} />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
+              {books.map((book) => (
+                <BookCard key={book.id} {...book} />
+              ))}
+            </div>
+            
+            {showPagination && (
+              <Pagination className="mt-6">
+                <PaginationContent>
+                  {getPageNumbers().map((page, i) => (
+                    <PaginationItem key={i}>
+                      {typeof page === 'string' ? (
+                        <span className="flex h-9 w-9 items-center justify-center">
+                          ...
+                        </span>
+                      ) : (
+                        <PaginationLink
+                          href="#"
+                          isActive={page === currentPage}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            onPageChange(page);
+                          }}
+                        >
+                          {page}
+                        </PaginationLink>
+                      )}
+                    </PaginationItem>
+                  ))}
+                </PaginationContent>
+              </Pagination>
+            )}
+          </>
         )}
       </div>
     </section>

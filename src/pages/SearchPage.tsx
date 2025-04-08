@@ -1,38 +1,51 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { searchBooks } from '@/services/bookServiceFixed';
+import { searchBooks } from '@/services/bookService';
 import BookCard from '@/components/BookCard';
 import { Book } from '@/types/supabase';
 import Navbar from '@/components/Navbar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, RefreshCw } from 'lucide-react';
+import { Search, RefreshCw, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { clearApiCache } from '@/utils/apiUtils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
+import { 
+  Pagination, 
+  PaginationContent, 
+  PaginationItem, 
+  PaginationLink, 
+  PaginationNext, 
+  PaginationPrevious 
+} from "@/components/ui/pagination";
+
+const BOOKS_PER_PAGE = 20;
 
 const SearchPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get('query') || '';
+  const currentPage = parseInt(searchParams.get('page') || '1', 10);
+  
   const [searchQuery, setSearchQuery] = useState(query);
   const [books, setBooks] = useState<Book[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [totalItems, setTotalItems] = useState(0);
   const { toast } = useToast();
   const { user } = useAuth();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      setSearchParams({ query: searchQuery.trim() });
+      setSearchParams({ query: searchQuery.trim(), page: '1' });
       
       // Log search to history if user is logged in
       if (user) {
         try {
-          // Fix: Use Promise.then() with success and error callbacks
+          // Use Promise.then() with success and error callbacks
           supabase
             .from('search_history')
             .insert([
@@ -49,6 +62,9 @@ const SearchPage = () => {
     }
   };
 
+  // Calculate total pages based on results
+  const totalPages = Math.ceil(totalItems / BOOKS_PER_PAGE);
+
   // Clear search button handler
   const handleClearSearch = () => {
     setSearchQuery('');
@@ -57,10 +73,24 @@ const SearchPage = () => {
     }
   };
 
+  // Navigate to a specific page
+  const handlePageChange = (page: number) => {
+    if (page < 1 || page > totalPages) return;
+    
+    setSearchParams({
+      query: query,
+      page: page.toString()
+    });
+    
+    // Scroll to top when changing pages
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   useEffect(() => {
     const fetchSearchResults = async () => {
       if (!query) {
         setBooks([]);
+        setTotalItems(0);
         return;
       }
 
@@ -69,15 +99,22 @@ const SearchPage = () => {
       
       try {
         // Set a controller for request timeout
-        const abortController = new AbortController();
+        const controller = new AbortController();
         const timeoutId = setTimeout(() => {
-          abortController.abort();
-        }, 20000); // 20 second timeout
+          controller.abort();
+        }, 15000); // 15 second timeout
         
-        const results = await searchBooks(query);
+        // Calculate startIndex based on current page (0-based for API)
+        const startIndex = (currentPage - 1) * BOOKS_PER_PAGE;
+        
+        // Use the imported searchGoogleBooks function
+        const { searchGoogleBooks } = await import('@/services/googleBooksService');
+        const result = await searchGoogleBooks(query, BOOKS_PER_PAGE, startIndex);
+        
         clearTimeout(timeoutId);
         
-        setBooks(results || []);
+        setBooks(result.books || []);
+        setTotalItems(result.totalItems || 0);
       } catch (error) {
         console.error('Error searching books:', error);
         setHasError(true);
@@ -92,15 +129,65 @@ const SearchPage = () => {
     };
 
     fetchSearchResults();
-  }, [query, toast]);
+  }, [query, currentPage, toast]);
 
   // Handle retry for failed searches
   const handleRetry = () => {
     // Clear the search cache for this query to force a fresh fetch
-    clearApiCache(`ol_search_${query}`);
+    clearApiCache(`gb_search_${query}`);
     
     // Re-trigger search by updating search params
-    setSearchParams({ query: query });
+    setSearchParams({ query: query, page: currentPage.toString() });
+  };
+
+  // Generate page numbers for pagination
+  const getPageNumbers = () => {
+    const pageNumbers = [];
+    const maxPagesShown = 5; // Show at most 5 page numbers
+  
+    if (totalPages <= maxPagesShown) {
+      // Show all pages if there are few of them
+      for (let i = 1; i <= totalPages; i++) {
+        pageNumbers.push(i);
+      }
+    } else {
+      // Always include first page
+      pageNumbers.push(1);
+      
+      // Calculate start and end of middle range
+      let startPage = Math.max(2, currentPage - 1);
+      let endPage = Math.min(currentPage + 1, totalPages - 1);
+      
+      // Adjust if we're near the beginning
+      if (currentPage <= 3) {
+        endPage = Math.min(maxPagesShown - 1, totalPages - 1);
+      }
+      
+      // Adjust if we're near the end
+      if (currentPage >= totalPages - 2) {
+        startPage = Math.max(2, totalPages - maxPagesShown + 2);
+      }
+      
+      // Add ellipsis after first page if needed
+      if (startPage > 2) {
+        pageNumbers.push('ellipsis-start');
+      }
+      
+      // Add middle pages
+      for (let i = startPage; i <= endPage; i++) {
+        pageNumbers.push(i);
+      }
+      
+      // Add ellipsis before last page if needed
+      if (endPage < totalPages - 1) {
+        pageNumbers.push('ellipsis-end');
+      }
+      
+      // Always include last page
+      pageNumbers.push(totalPages);
+    }
+    
+    return pageNumbers;
   };
 
   return (
@@ -130,16 +217,29 @@ const SearchPage = () => {
               </button>
             )}
           </div>
-          <Button type="submit">
-            <Search className="mr-2 h-4 w-4" />
+          <Button type="submit" disabled={isLoading}>
+            {isLoading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Search className="mr-2 h-4 w-4" />
+            )}
             Search
           </Button>
         </form>
 
         {query && (
-          <p className="mb-6 text-muted-foreground">
-            Showing results for "{query}"
-          </p>
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6">
+            <p className="text-muted-foreground">
+              {totalItems > 0 ? (
+                <>
+                  Showing {(currentPage - 1) * BOOKS_PER_PAGE + 1}-
+                  {Math.min(currentPage * BOOKS_PER_PAGE, totalItems)} of {totalItems} results for "{query}"
+                </>
+              ) : (
+                <>Searching for "{query}"</>
+              )}
+            </p>
+          </div>
         )}
 
         {isLoading ? (
@@ -162,11 +262,66 @@ const SearchPage = () => {
             </Button>
           </div>
         ) : books.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {books.map((book) => (
-              <BookCard key={book.id} {...book} />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {books.map((book) => (
+                <BookCard key={book.id} {...book} />
+              ))}
+            </div>
+            
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <Pagination className="my-8">
+                <PaginationContent>
+                  {currentPage > 1 && (
+                    <PaginationItem>
+                      <PaginationPrevious 
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handlePageChange(currentPage - 1);
+                        }} 
+                      />
+                    </PaginationItem>
+                  )}
+                  
+                  {/* Page numbers */}
+                  {getPageNumbers().map((page, i) => (
+                    <PaginationItem key={i}>
+                      {page === 'ellipsis-start' || page === 'ellipsis-end' ? (
+                        <span className="flex h-9 w-9 items-center justify-center">
+                          ...
+                        </span>
+                      ) : (
+                        <PaginationLink
+                          href="#"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handlePageChange(page as number);
+                          }}
+                          isActive={page === currentPage}
+                        >
+                          {page}
+                        </PaginationLink>
+                      )}
+                    </PaginationItem>
+                  ))}
+                  
+                  {currentPage < totalPages && (
+                    <PaginationItem>
+                      <PaginationNext 
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handlePageChange(currentPage + 1);
+                        }} 
+                      />
+                    </PaginationItem>
+                  )}
+                </PaginationContent>
+              </Pagination>
+            )}
+          </>
         ) : query ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground">No books found for "{query}"</p>

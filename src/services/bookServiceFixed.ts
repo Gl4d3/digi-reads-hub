@@ -1,259 +1,324 @@
 
-// This file contains the implementation of the book service
-// Replace with proper Supabase calls and fetch data from actual tables
+import { Book, Category, Bundle } from '@/types/supabase';
+import { supabase, cacheConfig } from '@/integrations/supabase/client';
+import { cache } from '@/utils/cacheUtils';
+import { 
+  searchGoogleBooks, 
+  getBookDetails as getGoogleBookDetails,
+  getCategoryBooks as getGoogleCategoryBooks,
+  getNewReleases as getGoogleNewReleases,
+  getFeaturedBooks as getGoogleFeaturedBooks,
+  getCategories as getGoogleCategories,
+  clearGoogleBooksCache
+} from '@/services/googleBooksService';
 
-import { supabase } from '@/integrations/supabase/client';
-import { books } from '@/data/books';
-import { Book, Category, Favorite, BookReview } from '@/types/supabase';
-import { fromSupabase, cacheConfig } from '@/integrations/supabase/client';
+// Re-export functions from Google Books service with our wrapper logic
 
-// Mock data for now - In a real app this would come from Supabase
-const categories = [
-  { id: '1', name: 'African Literature', slug: 'african-literature', created_at: new Date().toISOString() },
-  { id: '2', name: 'Self-Help', slug: 'self-help', created_at: new Date().toISOString() },
-  { id: '3', name: 'Business', slug: 'business', created_at: new Date().toISOString() },
-  { id: '4', name: 'Health', slug: 'health', created_at: new Date().toISOString() },
-];
-
-export const getBooks = async (): Promise<Book[]> => {
-  // Return mock data for now
-  return books.map(book => ({
-    id: book.id,
-    title: book.title,
-    author: book.author,
-    price: book.price,
-    description: book.description,
-    image_url: book.imageUrl,
-    format: book.format,
-    is_featured: !!book.isNew,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    categories: [book.category.toLowerCase().replace(' ', '-')]
-  }));
-};
-
-export const getBooksByCategory = async (categorySlug: string): Promise<Book[]> => {
-  const allBooks = await getBooks();
-  return allBooks.filter(book => 
-    book.categories?.includes(categorySlug) || 
-    book.categories?.some(cat => cat.toLowerCase() === categorySlug.toLowerCase())
-  );
-};
-
-export const getFeaturedBooks = async (limit: number = 10): Promise<Book[]> => {
-  const allBooks = await getBooks();
-  return allBooks
-    .filter(book => book.is_featured)
-    .slice(0, limit);
-};
-
-export const getNewReleases = async (limit: number = 10): Promise<Book[]> => {
-  const allBooks = await getBooks();
-  return allBooks
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    .slice(0, limit);
-};
-
-export const getBookById = async (id: string): Promise<Book | null> => {
-  const allBooks = await getBooks();
-  return allBooks.find(book => book.id === id) || null;
-};
-
-export const searchBooks = async (query: string): Promise<Book[]> => {
-  const allBooks = await getBooks();
-  const lowercaseQuery = query.toLowerCase();
-  
-  return allBooks.filter(book => 
-    book.title.toLowerCase().includes(lowercaseQuery) || 
-    book.author.toLowerCase().includes(lowercaseQuery) ||
-    book.description?.toLowerCase().includes(lowercaseQuery) ||
-    book.categories?.some(cat => cat.toLowerCase().includes(lowercaseQuery))
-  );
-};
-
-export const getCategories = async (): Promise<Category[]> => {
-  // In a real app, this would fetch from Supabase
-  return categories;
-};
-
-export const getFavorites = async (userId: string): Promise<Book[]> => {
+export async function getBooks(): Promise<Book[]> {
   try {
-    // In a real implementation, this would fetch from Supabase
-    // For now, return some mock data
-    const randomBooks = await getBooks();
-    return randomBooks.slice(0, 3); // Return first 3 books as "favorites"
-  } catch (error) {
-    console.error('Error fetching favorites:', error);
-    return [];
-  }
-};
-
-export const toggleFavorite = async (bookId: string, userId: string): Promise<boolean> => {
-  try {
-    // Check if the book is already a favorite
-    const isFavorite = await checkIsFavorite(bookId, userId);
+    const cacheKey = 'all_books';
+    const cachedBooks = cache.books.get<Book[]>(cacheKey);
     
-    if (isFavorite) {
-      // Remove from favorites
-      await removeFromFavorites(userId, bookId);
-    } else {
-      // Add to favorites
-      await addToFavorites(userId, bookId);
+    if (cachedBooks) {
+      return cachedBooks;
     }
     
-    return !isFavorite;
-  } catch (error) {
-    console.error('Error toggling favorite status:', error);
-    return false;
-  }
-};
-
-export const addToFavorites = async (userId: string, bookId: string): Promise<boolean> => {
-  try {
-    // In a real implementation, this would add to Supabase
-    console.log(`Adding book ${bookId} to favorites for user ${userId}`);
-    return true;
-  } catch (error) {
-    console.error('Error adding to favorites:', error);
-    return false;
-  }
-};
-
-export const removeFromFavorites = async (userId: string, bookId: string): Promise<boolean> => {
-  try {
-    // In a real implementation, this would remove from Supabase
-    console.log(`Removing book ${bookId} from favorites for user ${userId}`);
-    return true;
-  } catch (error) {
-    console.error('Error removing from favorites:', error);
-    return false;
-  }
-};
-
-export const checkIsFavorite = async (bookId: string, userId: string): Promise<boolean> => {
-  try {
-    // In a real implementation, this would check Supabase
-    return Math.random() > 0.5; // Randomly return true or false for demo purposes
-  } catch (error) {
-    console.error('Error checking favorite status:', error);
-    return false;
-  }
-};
-
-export const getRecommendedBooks = async (bookId: string, limit: number = 4): Promise<Book[]> => {
-  try {
-    const currentBook = await getBookById(bookId);
-    if (!currentBook || !currentBook.categories || currentBook.categories.length === 0) {
-      // If no categories, return random books
-      const allBooks = await getBooks();
-      return allBooks
-        .filter(book => book.id !== bookId)
-        .sort(() => 0.5 - Math.random())
-        .slice(0, limit);
+    // Get books from multiple categories for variety
+    const categories = ['fiction', 'non-fiction', 'african-literature', 'business'];
+    
+    let allBooks: Book[] = [];
+    for (const category of categories) {
+      const result = await getGoogleCategoryBooks(category, 5);
+      allBooks = [...allBooks, ...result.books];
     }
     
-    // Get books from the same category
-    const categoryBooks = await getBooksByCategory(currentBook.categories[0]);
-    const recommendations = categoryBooks
-      .filter(book => book.id !== bookId)
-      .sort(() => 0.5 - Math.random()) // Shuffle
-      .slice(0, limit);
-      
-    return recommendations;
-  } catch (error) {
-    console.error('Error getting recommended books:', error);
-    return [];
-  }
-};
-
-// Adding missing functions that are imported elsewhere
-
-export const getBundles = async () => {
-  try {
-    // Mock implementation - in a real app, this would fetch from Supabase
-    return [
-      {
-        id: 'bundle-1',
-        name: 'Beginner\'s Reading Bundle',
-        description: 'Perfect for new readers',
-        discount_percentage: 15,
-        image_url: '/assets/digireads-placeholder.jpg',
-        is_active: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      },
-      {
-        id: 'bundle-2',
-        name: 'Business Success Bundle',
-        description: 'Essential books for entrepreneurs',
-        discount_percentage: 20,
-        image_url: '/assets/digireads-placeholder.jpg',
-        is_active: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }
-    ];
-  } catch (error) {
-    console.error('Error fetching bundles:', error);
-    return [];
-  }
-};
-
-export const getBundleWithBooks = async (bundleId: string) => {
-  try {
-    // Mock implementation - in a real app, this would fetch from Supabase
-    const allBooks = await getBooks();
-    const randomBooks = allBooks.slice(0, 4); // Get first 4 books as sample
+    // Shuffle for randomness
+    allBooks = allBooks.sort(() => 0.5 - Math.random());
     
-    return {
-      bundle: {
-        id: bundleId,
-        name: bundleId === 'bundle-1' ? 'Beginner\'s Reading Bundle' : 'Business Success Bundle',
-        description: 'A carefully selected collection of books',
-        discount_percentage: 15,
-        image_url: '/assets/digireads-placeholder.jpg',
-        is_active: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      },
-      books: randomBooks
-    };
+    // Cache the result
+    cache.books.set(cacheKey, allBooks, cacheConfig.ttl.books);
+    
+    return allBooks;
   } catch (error) {
-    console.error(`Error fetching bundle with ID ${bundleId}:`, error);
+    console.error('Error getting books:', error);
+    return [];
+  }
+}
+
+export async function getBooksByCategory(categorySlug: string, limit = 10, startIndex = 0): Promise<Book[]> {
+  try {
+    const result = await getGoogleCategoryBooks(categorySlug, limit, startIndex);
+    return result.books;
+  } catch (error) {
+    console.error(`Error getting books for category ${categorySlug}:`, error);
+    return [];
+  }
+}
+
+export function getCategories(): Promise<Category[]> {
+  return Promise.resolve(getGoogleCategories());
+}
+
+export async function getNewReleases(limit = 10): Promise<Book[]> {
+  return await getGoogleNewReleases(limit);
+}
+
+export async function getFeaturedBooks(limit = 10): Promise<Book[]> {
+  return await getGoogleFeaturedBooks(limit);
+}
+
+export async function searchBooks(query: string, limit = 20, startIndex = 0): Promise<Book[]> {
+  try {
+    const result = await searchGoogleBooks(query, limit, startIndex);
+    return result.books;
+  } catch (error) {
+    console.error('Error searching books:', error);
+    return [];
+  }
+}
+
+export async function getBookById(id: string): Promise<Book | null> {
+  try {
+    return await getGoogleBookDetails(id);
+  } catch (error) {
+    console.error(`Error getting book ${id}:`, error);
     return null;
   }
-};
+}
 
-export const subscribeToMailingList = async (email: string, firstName?: string): Promise<boolean> => {
+// Bundle-related functions
+export async function getBundles(): Promise<Bundle[]> {
   try {
-    // Mock implementation - in a real app, this would call an API or insert to Supabase
-    console.log(`Subscribing to mailing list: ${email}, ${firstName || 'No name provided'}`);
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return true;
+    // In a real application, we would fetch this from Supabase
+    // For now, using static data
+    const currentDate = new Date();
+    const weekFromNow = new Date(currentDate);
+    weekFromNow.setDate(weekFromNow.getDate() + 7);
+    
+    const bundles: Bundle[] = [
+      {
+        id: 'weekly-bundle',
+        name: 'Weekly Reads Bundle',
+        description: 'A collection of 5 curated books to enjoy throughout the week. New selection every Monday!',
+        discount_percentage: 25,
+        image_url: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5',
+        is_active: true,
+        created_at: currentDate.toISOString(),
+        updated_at: currentDate.toISOString(),
+      },
+      {
+        id: 'daily-bundle',
+        name: 'Daily Inspiration Bundle',
+        description: 'Get your daily dose of inspiration with this collection of short reads, poetry, and motivational content.',
+        discount_percentage: 15,
+        image_url: 'https://images.unsplash.com/photo-1488590528505-98d2b5aba04b',
+        is_active: true,
+        created_at: currentDate.toISOString(),
+        updated_at: currentDate.toISOString(),
+      },
+      {
+        id: 'flash-sale-bundle',
+        name: 'Flash Sale: African Classics',
+        description: `Limited time offer! Grab this collection of essential African classics at an incredible discount. Available only until ${weekFromNow.toLocaleDateString()}!`,
+        discount_percentage: 40,
+        image_url: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158',
+        is_active: true,
+        created_at: currentDate.toISOString(),
+        updated_at: currentDate.toISOString(),
+      }
+    ];
+    
+    return bundles;
+  } catch (error) {
+    console.error('Error getting bundles:', error);
+    return [];
+  }
+}
+
+export async function getBundleWithBooks(bundleId: string): Promise<{ bundle: Bundle; books: Book[] } | null> {
+  try {
+    // Get the bundle
+    const bundles = await getBundles();
+    const bundle = bundles.find(b => b.id === bundleId);
+    
+    if (!bundle) {
+      return null;
+    }
+    
+    // In a real app, we'd query for the books in this bundle
+    // For now, fetch some books based on the bundle type
+    let query = '';
+    switch (bundleId) {
+      case 'weekly-bundle':
+        query = 'bestseller fiction';
+        break;
+      case 'daily-bundle':
+        query = 'inspiration self-help';
+        break;
+      case 'flash-sale-bundle':
+        query = 'african classics literature';
+        break;
+      default:
+        query = 'popular books';
+    }
+    
+    const result = await searchGoogleBooks(query, 5);
+    
+    return {
+      bundle,
+      books: result.books
+    };
+  } catch (error) {
+    console.error(`Error getting bundle ${bundleId} with books:`, error);
+    return null;
+  }
+}
+
+// User-specific functions
+export async function toggleFavorite(bookId: string): Promise<boolean> {
+  try {
+    const { data: user } = await supabase.auth.getUser();
+    
+    if (!user.user) {
+      console.error('User not authenticated');
+      return false;
+    }
+    
+    const userId = user.user.id;
+    
+    // Check if already favorited
+    const { data: existingFavorite } = await supabase
+      .from('favorites')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('book_id', bookId)
+      .single();
+    
+    if (existingFavorite) {
+      // Remove from favorites
+      await supabase
+        .from('favorites')
+        .delete()
+        .eq('user_id', userId)
+        .eq('book_id', bookId);
+      
+      return false;
+    } else {
+      // Add to favorites
+      await supabase
+        .from('favorites')
+        .insert([
+          { user_id: userId, book_id: bookId }
+        ]);
+      
+      return true;
+    }
+  } catch (error) {
+    console.error('Error toggling favorite:', error);
+    return false;
+  }
+}
+
+export async function getFavorites(): Promise<Book[]> {
+  try {
+    const { data: user } = await supabase.auth.getUser();
+    
+    if (!user.user) {
+      console.error('User not authenticated');
+      return [];
+    }
+    
+    const userId = user.user.id;
+    
+    // Get favorite book IDs
+    const { data: favorites } = await supabase
+      .from('favorites')
+      .select('book_id')
+      .eq('user_id', userId);
+    
+    if (!favorites || favorites.length === 0) {
+      return [];
+    }
+    
+    // Get book details for each favorite
+    const bookIds = favorites.map(fav => fav.book_id);
+    
+    const books: Book[] = [];
+    for (const id of bookIds) {
+      const book = await getBookById(id);
+      if (book) {
+        books.push(book);
+      }
+    }
+    
+    return books;
+  } catch (error) {
+    console.error('Error getting favorites:', error);
+    return [];
+  }
+}
+
+export async function checkIsFavorite(bookId: string): Promise<boolean> {
+  try {
+    const { data: user } = await supabase.auth.getUser();
+    
+    if (!user.user) {
+      return false;
+    }
+    
+    const userId = user.user.id;
+    
+    const { data: favorite } = await supabase
+      .from('favorites')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('book_id', bookId)
+      .single();
+    
+    return !!favorite;
+  } catch (error) {
+    console.error('Error checking if book is favorite:', error);
+    return false;
+  }
+}
+
+// Subscription function
+export async function subscribeToMailingList(email: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('mailing_list')
+      .insert([{ email }]);
+    
+    return !error;
   } catch (error) {
     console.error('Error subscribing to mailing list:', error);
     return false;
   }
-};
+}
 
-export const clearAllCaches = () => {
-  console.log('Clearing all caches');
-  // In a real implementation, this would clear cached data
-};
+// Cache management
+export function clearAllCaches(): void {
+  cache.books.clear();
+  cache.search.clear();
+  clearGoogleBooksCache();
+}
 
-export const prefetchCommonData = async () => {
-  console.log('Prefetching common data');
+/**
+ * Prefetch common data like featured books, new releases, etc.
+ */
+export async function prefetchCommonData(): Promise<void> {
   try {
-    // Prefetch data that's commonly needed
-    await Promise.all([
-      getCategories(),
+    const promises = [
       getFeaturedBooks(),
-      getNewReleases()
-    ]);
-    return true;
+      getNewReleases(),
+      getCategories(),
+      getBooksByCategory('african-literature', 5),
+      getBooksByCategory('fiction', 5),
+    ];
+    
+    await Promise.allSettled(promises);
+    console.log('Common data prefetched successfully');
   } catch (error) {
     console.error('Error prefetching common data:', error);
-    return false;
   }
-};
+}

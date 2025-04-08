@@ -108,12 +108,27 @@ const BookCard: React.FC<BookCardProps> = ({
     };
     
     addItem(book);
+    
+    // Show toast notification
+    const { toast } = require('@/components/ui/use-toast');
+    toast({
+      title: "Added to cart",
+      description: `${title} has been added to your cart.`,
+    });
   };
   
   // Handle image load
   const handleImageLoad = () => {
     setImageLoaded(true);
   };
+
+  // Truncate title if too long
+  const truncateTitle = (title: string, maxLength: number = 40) => {
+    if (title.length <= maxLength) return title;
+    return title.substring(0, maxLength) + '...';
+  };
+
+  const displayTitle = truncateTitle(title);
 
   return (
     <Link to={`/book/${id}`} className={cn("book-card group block", className)}>
@@ -148,7 +163,7 @@ const BookCard: React.FC<BookCardProps> = ({
         {/* Book image */}
         <div className="relative aspect-[2/3] overflow-hidden rounded-md mb-3 bg-muted">
           <OptimizedImage
-            src={image_url}
+            src={image_url || ''}
             alt={title}
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
             fallbackSrc="/assets/digireads-placeholder.jpg"
@@ -164,7 +179,7 @@ const BookCard: React.FC<BookCardProps> = ({
             </span>
           </div>
           
-          <h3 className="font-medium text-sm line-clamp-1">{title}</h3>
+          <h3 className="font-medium text-sm line-clamp-1" title={title}>{displayTitle}</h3>
           <p className="text-xs text-muted-foreground line-clamp-1">{author}</p>
           
           <div className="flex items-center justify-between pt-1">

@@ -29,12 +29,15 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
   const [hasError, setHasError] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [finalSrc, setFinalSrc] = useState<string>(
-    getOptimizedImageUrl(priority ? src : fallbackSrc)
+    getOptimizedImageUrl(src || fallbackSrc)
   );
 
   // Load image when component mounts or src changes
   useEffect(() => {
-    if (!src) return;
+    if (!src) {
+      setFinalSrc(getOptimizedImageUrl(fallbackSrc));
+      return;
+    }
     
     const optimizedSrc = getOptimizedImageUrl(src);
     setFinalSrc(optimizedSrc);
@@ -43,7 +46,7 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
     if (retryCount > 1) {
       setFinalSrc(getRandomFallbackImage());
     }
-  }, [src, retryCount]);
+  }, [src, retryCount, fallbackSrc]);
 
   // Handle image load success
   const handleLoad = () => {
@@ -56,13 +59,29 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
 
   // Custom error handler with retry logic
   const handleError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    console.log(`Image loading error for: ${finalSrc}`);
+    
     if (retryCount < 2) {
-      // Try to recover with our custom error handler
-      handleImageError(e);
+      // For Google Books images, try replacing edge params or zoom values
+      if (finalSrc.includes('books.google')) {
+        const newSrc = finalSrc
+          .replace('&edge=curl', '')
+          .replace('&zoom=1', '')
+          .replace('http://', 'https://');
+        
+        console.log(`Retrying with modified URL: ${newSrc}`);
+        setFinalSrc(newSrc);
+      } else {
+        // Try with our custom error handler
+        handleImageError(e);
+      }
+      
       setRetryCount(prev => prev + 1);
     } else {
       // After multiple failures, use a completely different image
-      setFinalSrc(getRandomFallbackImage());
+      const fallbackImage = getRandomFallbackImage();
+      console.log(`Using random fallback image: ${fallbackImage}`);
+      setFinalSrc(fallbackImage);
       setHasError(true);
     }
   };
@@ -75,6 +94,9 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
       )}
       style={{ width, height }}
     >
+      {!loaded && !hasError && (
+        <Skeleton className="absolute inset-0 w-full h-full" />
+      )}
       <img
         src={finalSrc}
         alt={alt}
@@ -82,14 +104,12 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
         onLoad={handleLoad}
         className={cn(
           "w-full h-full object-cover",
-          loaded ? "opacity-100" : "opacity-0"
+          loaded ? "opacity-100" : "opacity-0",
+          "transition-opacity duration-300"
         )}
         width={width}
         height={height}
       />
-      {!loaded && !hasError && (
-        <Skeleton className="absolute inset-0 w-full h-full" />
-      )}
     </div>
   );
 };

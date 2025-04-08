@@ -16,7 +16,7 @@ const FALLBACK_IMAGES = [
 /**
  * Process image URL to optimize loading
  * - Handles missing images
- * - Processes OpenLibrary URLs
+ * - Processes API URLs (Google Books, OpenLibrary)
  * - Applies image optimization parameters
  */
 export const getOptimizedImageUrl = (url?: string): string => {
@@ -27,23 +27,62 @@ export const getOptimizedImageUrl = (url?: string): string => {
   if (url.startsWith('/')) {
     return url;
   }
-  
-  // OpenLibrary specific optimizations
-  if (url.includes('covers.openlibrary.org')) {
-    // Always prefer larger size covers for better quality
-    if (url.includes('-S.jpg')) {
-      return url.replace('-S.jpg', '-M.jpg');
-    } else if (url.includes('-M.jpg') && Math.random() > 0.7) {
-      // 30% chance to try the large version for important images
-      return url.replace('-M.jpg', '-L.jpg');
+
+  try {
+    // Ensure HTTPS for all image URLs
+    let processedUrl = url.startsWith('http:') ? url.replace('http:', 'https:') : url;
+    
+    // Handle Google Books API images
+    if (processedUrl.includes('books.google.com')) {
+      // Remove problematic params that can cause image loading issues
+      processedUrl = processedUrl
+        .replace('&edge=curl', '')
+        .replace('&zoom=1', '');
+      
+      // For thumbnail URLs, try to get higher quality version if available
+      if (processedUrl.includes('&img=1&zoom=1')) {
+        processedUrl = processedUrl.replace('&img=1&zoom=1', '&img=1&zoom=2');
+      }
+      
+      // Add cache-busting to avoid stale images
+      if (!processedUrl.includes('?')) {
+        processedUrl += `?cb=${Date.now() % 10000}`;
+      } else if (!processedUrl.includes('cb=')) {
+        processedUrl += `&cb=${Date.now() % 10000}`;
+      }
     }
     
-    // Add cache-busting parameter to avoid browser cache issues
-    const cacheBuster = `?t=${Date.now() % 100000}`;
-    return url + cacheBuster;
+    // OpenLibrary specific optimizations
+    if (processedUrl.includes('covers.openlibrary.org')) {
+      // Always prefer larger size covers for better quality
+      if (processedUrl.includes('-S.jpg')) {
+        processedUrl = processedUrl.replace('-S.jpg', '-M.jpg');
+      } else if (processedUrl.includes('-M.jpg') && Math.random() > 0.7) {
+        // 30% chance to try the large version for important images
+        processedUrl = processedUrl.replace('-M.jpg', '-L.jpg');
+      }
+      
+      // Add cache-busting parameter
+      if (!processedUrl.includes('?')) {
+        processedUrl += `?t=${Date.now() % 10000}`;
+      }
+    }
+    
+    // Handle Unsplash images - make sure they have proper sizing params
+    if (processedUrl.includes('images.unsplash.com') && !processedUrl.includes('w=')) {
+      // Add size constraints for better loading
+      if (processedUrl.includes('?')) {
+        processedUrl += '&w=400&fit=crop';
+      } else {
+        processedUrl += '?w=400&fit=crop';
+      }
+    }
+    
+    return processedUrl;
+  } catch (error) {
+    console.error('Error optimizing image URL:', error);
+    return url;
   }
-  
-  return url;
 };
 
 /**
@@ -66,6 +105,16 @@ export const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event
     return;
   }
   
+  // Handle Google Books images
+  if (target.src.includes('books.google.com')) {
+    // Try without edge and zoom params
+    target.src = target.src
+      .replace('&edge=curl', '')
+      .replace('&zoom=1', '')
+      .replace('http:', 'https:');
+    return;
+  }
+  
   // If it's an OpenLibrary image that failed, try a different size
   if (target.src.includes('covers.openlibrary.org')) {
     if (target.src.includes('-M.jpg')) {
@@ -82,7 +131,7 @@ export const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event
 };
 
 /**
- * Preload an image in the background
+ * Preload an image in the background with timeout
  */
 export const preloadImage = (src: string): Promise<void> => {
   return new Promise((resolve) => {
@@ -104,6 +153,7 @@ export const preloadImage = (src: string): Promise<void> => {
     
     img.onerror = () => {
       clearTimeout(timeoutId);
+      console.warn(`Failed to preload image: ${src}`);
       resolve();
     };
     
