@@ -28,6 +28,7 @@ const BookCard: React.FC<BookCardProps> = ({
   const { addItem } = useCart();
   const [isFavorite, setIsFavorite] = useState(false);
   const [isLoadingFavorite, setIsLoadingFavorite] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
   
   // Check if the book is a new release (added in the last 30 days)
   const isNew = new Date(created_at) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -108,6 +109,11 @@ const BookCard: React.FC<BookCardProps> = ({
     
     addItem(book);
   };
+  
+  // Handle image load
+  const handleImageLoad = () => {
+    setImageLoaded(true);
+  };
 
   return (
     <Link to={`/book/${id}`} className={cn("book-card group block", className)}>
@@ -146,13 +152,14 @@ const BookCard: React.FC<BookCardProps> = ({
             alt={title}
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
             fallbackSrc="/assets/digireads-placeholder.jpg"
+            onLoad={handleImageLoad}
           />
         </div>
         
         {/* Book info */}
         <div className="space-y-1">
           <div className="flex flex-wrap gap-1">
-            <span className={cn("category-pill", formatBadgeColor(format))}>
+            <span className={cn("px-2 py-0.5 rounded-full text-xs", formatBadgeColor(format))}>
               {format === 'both' ? 'E-book & Print' : format === 'ebook' ? 'E-book' : 'Print'}
             </span>
           </div>

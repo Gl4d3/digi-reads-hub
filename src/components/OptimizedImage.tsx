@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { getOptimizedImageUrl, handleImageError } from '@/utils/imageUtils';
+import { getOptimizedImageUrl, handleImageError, getRandomFallbackImage } from '@/utils/imageUtils';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -27,38 +27,44 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
 }) => {
   const [loaded, setLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const [finalSrc, setFinalSrc] = useState<string>(
-    priority && src ? getOptimizedImageUrl(src) : fallbackSrc
+    getOptimizedImageUrl(priority ? src : fallbackSrc)
   );
 
-  // Load image immediately if priority
+  // Load image when component mounts or src changes
   useEffect(() => {
-    if (priority && src) {
-      const optimizedSrc = getOptimizedImageUrl(src);
-      setFinalSrc(optimizedSrc);
-    }
-  }, [priority, src]);
+    if (!src) return;
+    
+    const optimizedSrc = getOptimizedImageUrl(src);
+    setFinalSrc(optimizedSrc);
 
-  // Handle non-priority images
-  useEffect(() => {
-    if (!priority && src) {
-      // Just set the optimized URL directly without preloading
-      setFinalSrc(getOptimizedImageUrl(src));
+    // If previous attempts failed, try a fallback immediately
+    if (retryCount > 1) {
+      setFinalSrc(getRandomFallbackImage());
     }
-  }, [priority, src]);
+  }, [src, retryCount]);
 
   // Handle image load success
   const handleLoad = () => {
     setLoaded(true);
+    setHasError(false);
     if (onLoad) {
       onLoad();
     }
   };
 
-  // Custom error handler
+  // Custom error handler with retry logic
   const handleError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-    setHasError(true);
-    setFinalSrc(fallbackSrc);
+    if (retryCount < 2) {
+      // Try to recover with our custom error handler
+      handleImageError(e);
+      setRetryCount(prev => prev + 1);
+    } else {
+      // After multiple failures, use a completely different image
+      setFinalSrc(getRandomFallbackImage());
+      setHasError(true);
+    }
   };
 
   return (

@@ -7,7 +7,7 @@ import { Book } from '@/types/supabase';
 import Navbar from '@/components/Navbar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search } from 'lucide-react';
+import { Search, RefreshCw } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { clearApiCache } from '@/utils/apiUtils';
 import { supabase } from '@/integrations/supabase/client';
@@ -32,8 +32,8 @@ const SearchPage = () => {
       // Log search to history if user is logged in
       if (user) {
         try {
-          // Fix: Use Promise.then() instead of then/catch chain
-          void supabase
+          // Fix: Use Promise.then() with success and error callbacks
+          supabase
             .from('search_history')
             .insert([
               { user_id: user.id, query: searchQuery.trim() }
@@ -68,16 +68,14 @@ const SearchPage = () => {
       setHasError(false);
       
       try {
-        // Use a timeout to ensure we don't get stuck in loading state
-        const timeoutPromise = new Promise<Book[]>((_, reject) => {
-          setTimeout(() => reject(new Error('Search timed out')), 10000);
-        });
+        // Set a controller for request timeout
+        const abortController = new AbortController();
+        const timeoutId = setTimeout(() => {
+          abortController.abort();
+        }, 20000); // 20 second timeout
         
-        // Race the search against the timeout
-        const results = await Promise.race([
-          searchBooks(query),
-          timeoutPromise
-        ]);
+        const results = await searchBooks(query);
+        clearTimeout(timeoutId);
         
         setBooks(results || []);
       } catch (error) {
@@ -159,6 +157,7 @@ const SearchPage = () => {
           <div className="text-center py-12 border border-dashed border-muted-foreground/30 rounded-lg">
             <p className="text-muted-foreground mb-4">Failed to load search results</p>
             <Button onClick={handleRetry} variant="outline">
+              <RefreshCw className="mr-2 h-4 w-4" />
               Try Again
             </Button>
           </div>
