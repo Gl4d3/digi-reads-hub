@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
-import { getOptimizedImageUrl, handleImageError, preloadImage } from '@/utils/imageUtils';
+import { getOptimizedImageUrl, handleImageError } from '@/utils/imageUtils';
 import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface OptimizedImageProps {
   src: string;
@@ -25,33 +26,26 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
   onLoad,
 }) => {
   const [loaded, setLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
   const [finalSrc, setFinalSrc] = useState<string>(
-    priority ? getOptimizedImageUrl(src) : fallbackSrc
+    priority && src ? getOptimizedImageUrl(src) : fallbackSrc
   );
 
-  // Handle priority loading
+  // Load image immediately if priority
   useEffect(() => {
     if (priority && src) {
-      setFinalSrc(getOptimizedImageUrl(src));
+      const optimizedSrc = getOptimizedImageUrl(src);
+      setFinalSrc(optimizedSrc);
     }
   }, [priority, src]);
 
-  // Load image when not priority
+  // Handle non-priority images
   useEffect(() => {
     if (!priority && src) {
-      const optimizedSrc = getOptimizedImageUrl(src);
-      
-      // Preload the image before showing it
-      preloadImage(optimizedSrc)
-        .then(() => {
-          setFinalSrc(optimizedSrc);
-        })
-        .catch(() => {
-          // Fallback to default on error
-          setFinalSrc(fallbackSrc);
-        });
+      // Just set the optimized URL directly without preloading
+      setFinalSrc(getOptimizedImageUrl(src));
     }
-  }, [priority, src, fallbackSrc]);
+  }, [priority, src]);
 
   // Handle image load success
   const handleLoad = () => {
@@ -59,6 +53,12 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
     if (onLoad) {
       onLoad();
     }
+  };
+
+  // Custom error handler
+  const handleError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    setHasError(true);
+    setFinalSrc(fallbackSrc);
   };
 
   return (
@@ -72,17 +72,17 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
       <img
         src={finalSrc}
         alt={alt}
-        onError={handleImageError}
+        onError={handleError}
         onLoad={handleLoad}
         className={cn(
-          "w-full h-full object-cover transition-opacity duration-300",
+          "w-full h-full object-cover",
           loaded ? "opacity-100" : "opacity-0"
         )}
         width={width}
         height={height}
       />
-      {!loaded && (
-        <div className="absolute inset-0 bg-muted animate-pulse rounded-md" />
+      {!loaded && !hasError && (
+        <Skeleton className="absolute inset-0 w-full h-full" />
       )}
     </div>
   );

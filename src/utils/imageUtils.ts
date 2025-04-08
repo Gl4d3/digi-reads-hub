@@ -1,50 +1,10 @@
+
 /**
  * Image loading and optimization utilities
  */
 
 // Default image to use when loading fails
 const DEFAULT_IMAGE = '/assets/digireads-placeholder.jpg';
-
-// Keep track of preloaded images
-const preloadedImages = new Set<string>();
-
-/**
- * Preload an image in the background
- */
-export const preloadImage = (src: string): Promise<void> => {
-  if (!src || src === DEFAULT_IMAGE || preloadedImages.has(src)) {
-    return Promise.resolve();
-  }
-  
-  return new Promise((resolve) => {
-    const img = new Image();
-    
-    img.onload = () => {
-      preloadedImages.add(src);
-      resolve();
-    };
-    
-    img.onerror = () => {
-      // Still resolve the promise even if the image fails to load
-      resolve();
-    };
-    
-    img.src = src;
-  });
-};
-
-/**
- * Preload multiple images
- */
-export const preloadImages = (srcs: string[]): void => {
-  srcs.forEach(src => {
-    if (src) {
-      preloadImage(src).catch(() => {
-        // Silent catch - we don't want preloading to cause issues
-      });
-    }
-  });
-};
 
 /**
  * Process image URL to optimize loading
@@ -54,6 +14,12 @@ export const preloadImages = (srcs: string[]): void => {
  */
 export const getOptimizedImageUrl = (url?: string): string => {
   if (!url) return DEFAULT_IMAGE;
+  if (url === DEFAULT_IMAGE) return DEFAULT_IMAGE;
+  
+  // Handle relative URLs
+  if (url.startsWith('/')) {
+    return url;
+  }
   
   // OpenLibrary specific optimizations
   if (url.includes('covers.openlibrary.org')) {
@@ -64,29 +30,8 @@ export const getOptimizedImageUrl = (url?: string): string => {
     return url;
   }
   
-  // For Unsplash images, add optimization parameters
-  if (url.includes('images.unsplash.com')) {
-    // Add quality and format parameters for better loading
-    const separator = url.includes('?') ? '&' : '?';
-    return `${url}${separator}q=80&fm=webp`;
-  }
-  
   return url;
 };
-
-/**
- * Image component props for the optimized image component
- */
-export interface OptimizedImageProps {
-  src: string;
-  alt: string;
-  className?: string;
-  width?: number;
-  height?: number;
-  priority?: boolean;
-  onLoad?: () => void;
-  fallback?: string;
-}
 
 /**
  * Handle image error and replace with default image
@@ -96,4 +41,42 @@ export const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event
   if (target.src !== DEFAULT_IMAGE) {
     target.src = DEFAULT_IMAGE;
   }
+};
+
+/**
+ * Preload an image in the background (simplified)
+ */
+export const preloadImage = (src: string): Promise<void> => {
+  return new Promise((resolve) => {
+    if (!src || src === DEFAULT_IMAGE) {
+      resolve();
+      return;
+    }
+    
+    const img = new Image();
+    img.onload = () => resolve();
+    img.onerror = () => resolve();
+    img.src = src;
+  });
+};
+
+/**
+ * Preload multiple images with a delay to prevent too many simultaneous requests
+ */
+export const preloadImages = (srcs: string[]): void => {
+  if (!srcs || srcs.length === 0) return;
+  
+  // Only preload a few images to avoid overloading the browser
+  const imagesToPreload = srcs.slice(0, 5);
+  
+  imagesToPreload.forEach((src, index) => {
+    if (src) {
+      // Stagger the preloading to prevent too many simultaneous requests
+      setTimeout(() => {
+        preloadImage(src).catch(() => {
+          // Silent catch
+        });
+      }, index * 100);
+    }
+  });
 };

@@ -12,6 +12,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { clearApiCache } from '@/utils/apiUtils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const SearchPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -67,9 +68,18 @@ const SearchPage = () => {
       setHasError(false);
       
       try {
-        // Fixed search call with single argument
-        const results = await searchBooks(query);
-        setBooks(results);
+        // Use a timeout to ensure we don't get stuck in loading state
+        const timeoutPromise = new Promise<Book[]>((_, reject) => {
+          setTimeout(() => reject(new Error('Search timed out')), 10000);
+        });
+        
+        // Race the search against the timeout
+        const results = await Promise.race([
+          searchBooks(query),
+          timeoutPromise
+        ]);
+        
+        setBooks(results || []);
       } catch (error) {
         console.error('Error searching books:', error);
         setHasError(true);
@@ -137,11 +147,11 @@ const SearchPage = () => {
         {isLoading ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {[...Array(8)].map((_, i) => (
-              <div key={i} className="animate-pulse">
-                <div className="aspect-[2/3] bg-muted rounded-md mb-3"></div>
-                <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
-                <div className="h-3 bg-muted rounded w-1/2 mb-2"></div>
-                <div className="h-8 bg-muted rounded w-full mt-3"></div>
+              <div key={i} className="flex flex-col">
+                <Skeleton className="aspect-[2/3] w-full mb-3" />
+                <Skeleton className="h-4 w-3/4 mb-2" />
+                <Skeleton className="h-3 w-1/2 mb-2" />
+                <Skeleton className="h-8 w-full mt-3" />
               </div>
             ))}
           </div>

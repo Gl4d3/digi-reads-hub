@@ -39,6 +39,10 @@ export async function fetchWithCache<T>(
     }
   }
 
+  // Add a timeout to the fetch
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+  
   // Fetch with retries
   let lastError: Error | null = null;
   
@@ -49,7 +53,13 @@ export async function fetchWithCache<T>(
         await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
       }
       
-      const response = await fetch(url, options);
+      const fetchOptions = {
+        ...options,
+        signal: controller.signal
+      };
+      
+      const response = await fetch(url, fetchOptions);
+      clearTimeout(timeoutId);
       
       if (!response.ok) {
         throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
@@ -61,9 +71,9 @@ export async function fetchWithCache<T>(
       cache.books.set(cacheKey, data, cacheDuration);
       
       // Store in localStorage for persistence across refreshes
-      // Only store if data is small enough (<500KB)
+      // Only store if data is small enough (<100KB)
       const jsonData = JSON.stringify(data);
-      if (jsonData.length < 500000) {
+      if (jsonData.length < 100000) {
         localStorage.setItem(`dr_api_${cacheKey}`, JSON.stringify({
           data,
           expiry: Date.now() + cacheDuration
@@ -72,6 +82,7 @@ export async function fetchWithCache<T>(
       
       return data as T;
     } catch (error) {
+      clearTimeout(timeoutId);
       console.error(`Fetch error (attempt ${attempt})`, error);
       lastError = error instanceof Error ? error : new Error(String(error));
       
@@ -90,15 +101,7 @@ export async function fetchWithCache<T>(
  * Clear API cache by key pattern
  */
 export function clearApiCache(pattern?: string): void {
-  // Clear memory cache for books
-  if (typeof cache.books.clear === 'function') {
-    cache.books.clear();
-  } else {
-    // Fallback if clear method isn't available
-    console.warn('Cache clear method not available, removing individual entries');
-  }
-  
-  // Clear localStorage cache
+  // Clear cache entries individually if clear method isn't available
   const keys = Object.keys(localStorage);
   keys.forEach(key => {
     if (key.startsWith('dr_api_') && (!pattern || key.includes(pattern))) {

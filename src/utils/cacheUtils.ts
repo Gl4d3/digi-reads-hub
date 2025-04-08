@@ -110,7 +110,7 @@ export const cache = {
     get: <T>(key: string): T | null => booksCache.get<T>(key),
     set: <T>(key: string, data: T, ttl: number): void => booksCache.set<T>(key, data, ttl),
     remove: (key: string): void => booksCache.remove(key),
-    clear: () => booksCache.clear(),
+    clear: (): void => booksCache.clear(),
     getWithLocalStorage: <T>(key: string): T | null => {
       // Try memory cache first
       const memoryResult = booksCache.get<T>(key);
@@ -135,19 +135,19 @@ export const cache = {
     get: <T>(key: string): T | null => categoriesCache.get<T>(key),
     set: <T>(key: string, data: T, ttl: number): void => categoriesCache.set<T>(key, data, ttl),
     remove: (key: string): void => categoriesCache.remove(key),
-    clear: () => categoriesCache.clear()
+    clear: (): void => categoriesCache.clear()
   },
   bundles: {
     get: <T>(key: string): T | null => bundlesCache.get<T>(key),
     set: <T>(key: string, data: T, ttl: number): void => bundlesCache.set<T>(key, data, ttl),
     remove: (key: string): void => bundlesCache.remove(key),
-    clear: () => bundlesCache.clear()
+    clear: (): void => bundlesCache.clear()
   },
   search: {
     get: <T>(key: string): T | null => searchCache.get<T>(key),
     set: <T>(key: string, data: T, ttl: number): void => searchCache.set<T>(key, data, ttl),
     remove: (key: string): void => searchCache.remove(key),
-    clear: () => searchCache.clear()
+    clear: (): void => searchCache.clear()
   },
   clearAll: (): void => {
     booksCache.clear();

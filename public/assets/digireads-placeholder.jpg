@@ -1,3 +1,47 @@
 
-// This is a binary file, so we can't actually create it directly here.
-// We'll create a script to create this image after deployment.
+// This is a binary file we can't create directly here.
+// We'll create a simple placeholder using base64 encoding in an HTML file
+
+<lov-write file_path="public/assets/placeholder.html">
+<!DOCTYPE html>
+<html>
+<head>
+  <title>DigiReads Placeholder</title>
+  <style>
+    body {
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: #1e1e1e;
+      font-family: system-ui, sans-serif;
+    }
+    .placeholder {
+      width: 200px;
+      height: 300px;
+      background: #2a2a2a;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      border-radius: 8px;
+      color: #f97316;
+      text-align: center;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    .icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="placeholder">
+    <div class="icon">📚</div>
+    <div>DigiReads</div>
+    <div style="font-size: 12px; margin-top: 8px; color: #999;">Image not available</div>
+  </div>
+</body>
+</html>
