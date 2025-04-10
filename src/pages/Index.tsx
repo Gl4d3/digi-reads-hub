@@ -26,6 +26,10 @@ const Index = () => {
         // Ensure data is loaded properly
         await ensureDataLoaded();
         
+        // Clear existing cache to ensure fresh data
+        const { clearAllCaches } = await import('@/services/bookServiceFixed');
+        clearAllCaches();
+        
         // Fetch books by category
         const [newReleasesData, africanLit, selfHelp, business, health] = await Promise.all([
           getNewReleases(5),
@@ -73,21 +77,21 @@ const Index = () => {
           </div>
         </section>
         
+        {/* African Literature - MOVED TO TOP as requested */}
+        <CategorySection 
+          title="African Literature"
+          description="Explore the rich cultural tapestry of Africa through these compelling literary works."
+          category="african-literature"
+          books={africanLitBooks}
+          isLoading={isLoading}
+        />
+        
         {/* New Releases */}
         <CategorySection 
           title="New Releases"
           description="The latest additions to our growing collection of African literature and more."
           category="new-releases"
           books={newReleases}
-          isLoading={isLoading}
-        />
-        
-        {/* African Literature */}
-        <CategorySection 
-          title="African Literature"
-          description="Explore the rich cultural tapestry of Africa through these compelling literary works."
-          category="african-literature"
-          books={africanLitBooks}
           className="bg-digireads-dark/50"
           isLoading={isLoading}
         />
@@ -121,6 +125,7 @@ const Index = () => {
           description="Essential reading for entrepreneurs and business professionals in the African context."
           category="business"
           books={businessBooks}
+          className="bg-digireads-dark/50"
           isLoading={isLoading}
         />
         
@@ -130,7 +135,6 @@ const Index = () => {
           description="Holistic approaches to health inspired by African traditions and modern science."
           category="health"
           books={healthBooks}
-          className="bg-digireads-dark/50"
           isLoading={isLoading}
         />
         

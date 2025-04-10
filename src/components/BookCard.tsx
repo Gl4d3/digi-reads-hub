@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { ShoppingCart, Heart } from 'lucide-react';
+import { ShoppingCart, Heart, Star } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { Book } from '@/types/supabase';
@@ -22,6 +22,8 @@ const BookCard: React.FC<BookCardProps> = ({
   format,
   created_at,
   is_featured,
+  ratings,
+  ratings_count,
   className,
 }) => {
   const { user } = useAuth();
@@ -104,7 +106,9 @@ const BookCard: React.FC<BookCardProps> = ({
       format,
       created_at,
       updated_at: created_at,
-      is_featured
+      is_featured,
+      ratings,
+      ratings_count
     };
     
     addItem(book);
@@ -129,6 +133,24 @@ const BookCard: React.FC<BookCardProps> = ({
   };
 
   const displayTitle = truncateTitle(title);
+
+  // Format ratings as stars
+  const displayRating = () => {
+    if (!ratings || ratings === 0) return null;
+    
+    return (
+      <div className="flex items-center gap-1 mt-1">
+        <Star 
+          className="h-3 w-3 fill-yellow-400 text-yellow-400" 
+          fill="currentColor"
+        />
+        <span className="text-xs font-medium">{ratings.toFixed(1)}</span>
+        {ratings_count && ratings_count > 0 && (
+          <span className="text-xs text-muted-foreground">({ratings_count})</span>
+        )}
+      </div>
+    );
+  };
 
   return (
     <Link to={`/book/${id}`} className={cn("book-card group block", className)}>
@@ -181,6 +203,9 @@ const BookCard: React.FC<BookCardProps> = ({
           
           <h3 className="font-medium text-sm line-clamp-1" title={title}>{displayTitle}</h3>
           <p className="text-xs text-muted-foreground line-clamp-1">{author}</p>
+          
+          {/* Display ratings */}
+          {displayRating()}
           
           <div className="flex items-center justify-between pt-1">
             <span className="font-bold text-sm">{formatPrice(price)}</span>

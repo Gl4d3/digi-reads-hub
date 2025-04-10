@@ -82,6 +82,41 @@ function cleanDescription(text: string): string {
   return cleanText;
 }
 
+// Check if the book appears to be a proper book (not a publication, report, etc.)
+function isActualBook(book: GoogleBookItem): boolean {
+  // Check for common non-book identifiers in the title
+  const nonBookKeywords = [
+    'bulletin', 'report', 'proceedings', 'publication', 'catalog', 
+    'journal', 'technical report', 'newsletter', 'press clips', 
+    'vasectomy', 'soil moisture', 'resources in education'
+  ];
+  
+  const title = book.volumeInfo.title?.toLowerCase() || '';
+  
+  // Filter out items with these keywords in the title
+  if (nonBookKeywords.some(keyword => title.includes(keyword))) {
+    return false;
+  }
+  
+  // Require at least an author or publisher
+  if (!book.volumeInfo.authors?.length && !book.volumeInfo.publisher) {
+    return false;
+  }
+  
+  // Prefer items with page counts (more likely to be actual books)
+  if (book.volumeInfo.pageCount && book.volumeInfo.pageCount > 50) {
+    return true;
+  }
+  
+  // Prefer items with proper cover images
+  if (book.volumeInfo.imageLinks && 
+      (book.volumeInfo.imageLinks.thumbnail || book.volumeInfo.imageLinks.smallThumbnail)) {
+    return true;
+  }
+  
+  return true;
+}
+
 // Transform Google Books item to our Book type
 function transformGoogleBookToBook(book: GoogleBookItem): Book {
   // Generate a realistic price based on page count or randomly if not available
@@ -119,6 +154,11 @@ function transformGoogleBookToBook(book: GoogleBookItem): Book {
     // For Google Books API: Replace zoom=1 with zoom=0 to get the full cover without cropping
     if (imageUrl.includes('&zoom=1')) {
       imageUrl = imageUrl.replace('&zoom=1', '&zoom=0');
+    }
+    
+    // Remove edge=curl parameter which can cause image display issues
+    if (imageUrl.includes('&edge=curl')) {
+      imageUrl = imageUrl.replace('&edge=curl', '');
     }
     
     // Ensure we're using a properly sized image
@@ -235,8 +275,8 @@ export async function searchGoogleBooks(
 
     console.log(`Fetching books from Google Books API for query: ${query}`);
     
-    // Build search URL with proper parameters - filter to books only
-    const url = `${API_BASE_URL}/volumes?q=${encodeURIComponent(query)}&maxResults=${limit}&startIndex=${startIndex}&printType=books&projection=full&filter=paid-ebooks`;
+    // Include proper filtering to get only books
+    const url = `${API_BASE_URL}/volumes?q=${encodeURIComponent(query)}&maxResults=${Math.min(limit * 2, 40)}&startIndex=${startIndex}&printType=books&projection=full`;
     
     // Use enhanced fetch with caching, retries, and timeout
     const data = await fetchWithCache<GoogleBooksSearchResponse>(
@@ -248,7 +288,7 @@ export async function searchGoogleBooks(
       cacheConfig.ttl.search
     );
     
-    const totalItems = data.totalItems || 0;
+    let totalItems = data.totalItems || 0;
     
     // Handle case where no results were found
     if (!data.items || data.items.length === 0) {
@@ -257,10 +297,16 @@ export async function searchGoogleBooks(
       return emptyResult;
     }
     
-    // Transform Google Book items to our Book format
-    const books = data.items.map(transformGoogleBookToBook);
+    // Filter to only include actual books, not reports/publications
+    const filteredItems = data.items.filter(isActualBook);
     
-    const result = { books, totalItems };
+    // Transform Google Book items to our Book format
+    let books = filteredItems.map(transformGoogleBookToBook);
+    
+    // Limit to requested number
+    books = books.slice(0, limit);
+    
+    const result = { books, totalItems: books.length > 0 ? totalItems : 0 };
     
     // Store in cache
     cache.search.set(cacheKey, result, cacheConfig.ttl.search);
@@ -323,18 +369,18 @@ export async function getBookDetails(bookId: string): Promise<Book | null> {
 export async function getCategoryBooks(categorySlug: string, limit = 20, startIndex = 0): Promise<{ books: Book[], totalItems: number }> {
   // Map categories to effective search terms for Google Books API
   const CATEGORY_SEARCH_TERMS: Record<string, string> = {
-    'african-literature': 'african literature fiction chinua achebe',
-    'poetry': 'poetry poems verse anthology',
-    'history': 'history biography memoir historical',
-    'fiction': 'fiction novel bestseller',
-    'non-fiction': 'non-fiction essays journalism',
-    'self-help': 'self improvement motivation personal development',
-    'business': 'business management entrepreneurship leadership',
-    'health': 'health wellness fitness nutrition'
+    'african-literature': 'subject:fiction africa OR african literature -report -proceedings',
+    'poetry': 'subject:poetry poems verse anthology -report -proceedings',
+    'history': 'subject:history biography memoir historical -report -proceedings',
+    'fiction': 'subject:fiction novel bestseller -report -proceedings',
+    'non-fiction': 'subject:non-fiction essays journalism -report -proceedings',
+    'self-help': 'subject:self-improvement motivation personal development -report -proceedings',
+    'business': 'subject:business management entrepreneurship leadership -report -proceedings',
+    'health': 'subject:health wellness fitness nutrition -report -proceedings'
   };
 
   try {
-    const searchTerm = CATEGORY_SEARCH_TERMS[categorySlug] || categorySlug;
+    const searchTerm = CATEGORY_SEARCH_TERMS[categorySlug] || `subject:${categorySlug} -report -proceedings`;
     
     // Check cache first
     const cacheKey = `gbooks_category_${categorySlug}_${limit}_${startIndex}`;
@@ -346,13 +392,26 @@ export async function getCategoryBooks(categorySlug: string, limit = 20, startIn
     }
     
     console.log(`Fetching books for category: ${categorySlug} with search term: ${searchTerm}`);
-    const result = await searchGoogleBooks(searchTerm, limit, startIndex);
+    const result = await searchGoogleBooks(searchTerm, limit * 2, startIndex);
     
     // Add specific category to all books returned
-    result.books = result.books.map(book => ({
-      ...book,
-      categories: [...(book.categories || []), categorySlug]
-    }));
+    result.books = result.books
+      .filter(book => book.title && book.author !== 'Unknown Author')
+      .map(book => ({
+        ...book,
+        categories: [...(book.categories || []), categorySlug]
+      }))
+      .slice(0, limit);
+    
+    // Sort by ratings if available
+    result.books.sort((a, b) => {
+      // First by rating (higher first)
+      if ((b.ratings || 0) !== (a.ratings || 0)) {
+        return (b.ratings || 0) - (a.ratings || 0);
+      }
+      // Then by number of ratings (higher first)
+      return (b.ratings_count || 0) - (a.ratings_count || 0);
+    });
     
     // Cache the result
     cache.books.set(cacheKey, result, cacheConfig.ttl.books);
@@ -378,13 +437,26 @@ export async function getNewReleases(limit = 20): Promise<Book[]> {
     
     // Use publishedDate to find recent books
     const currentYear = new Date().getFullYear();
-    const query = `published:${currentYear-1}-${currentYear}`;
-    const result = await searchGoogleBooks(query, limit);
+    const query = `published:${currentYear-1}-${currentYear} -report -proceedings -bulletin`;
+    const result = await searchGoogleBooks(query, limit * 2);
+    
+    // Filter out non-books and sort by rating
+    const books = result.books
+      .filter(book => book.title && book.author !== 'Unknown Author')
+      .sort((a, b) => {
+        // Sort by rating (higher first)
+        if ((b.ratings || 0) !== (a.ratings || 0)) {
+          return (b.ratings || 0) - (a.ratings || 0);
+        }
+        // Then by number of ratings
+        return (b.ratings_count || 0) - (a.ratings_count || 0);
+      })
+      .slice(0, limit);
     
     // Cache the result
-    cache.books.set(cacheKey, result.books, cacheConfig.ttl.books);
+    cache.books.set(cacheKey, books, cacheConfig.ttl.books);
     
-    return result.books;
+    return books;
   } catch (error) {
     console.error('Error fetching new releases:', error);
     return [];
@@ -404,14 +476,25 @@ export async function getFeaturedBooks(limit = 20): Promise<Book[]> {
     }
     
     // Search for bestsellers or award winners
-    const query = "bestseller OR award winner";
-    const result = await searchGoogleBooks(query, limit);
+    const query = "subject:bestseller OR award winner -report -proceedings -bulletin";
+    const result = await searchGoogleBooks(query, limit * 2);
     
-    // Mark all as featured
-    const featuredBooks = result.books.map(book => ({
-      ...book,
-      is_featured: true
-    }));
+    // Filter and sort by rating
+    const featuredBooks = result.books
+      .filter(book => book.title && book.author !== 'Unknown Author')
+      .sort((a, b) => {
+        // Sort by rating (higher first)
+        if ((b.ratings || 0) !== (a.ratings || 0)) {
+          return (b.ratings || 0) - (a.ratings || 0);
+        }
+        // Then by number of ratings
+        return (b.ratings_count || 0) - (a.ratings_count || 0);
+      })
+      .slice(0, limit)
+      .map(book => ({
+        ...book,
+        is_featured: true
+      }));
     
     // Cache the result
     cache.books.set(cacheKey, featuredBooks, cacheConfig.ttl.books);

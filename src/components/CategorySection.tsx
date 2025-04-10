@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import BookCard from './BookCard';
 import { Link } from 'react-router-dom';
 import { Book } from '@/types/supabase';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Star } from 'lucide-react';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink } from '@/components/ui/pagination';
 
 interface CategorySectionProps {
