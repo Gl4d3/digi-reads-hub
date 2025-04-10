@@ -40,6 +40,8 @@ interface GoogleBookItem {
     };
     language?: string;
     publisher?: string;
+    averageRating?: number;
+    ratingsCount?: number;
   };
   saleInfo?: {
     listPrice?: {
@@ -51,6 +53,33 @@ interface GoogleBookItem {
       currencyCode: string;
     };
   };
+  accessInfo?: {
+    webReaderLink?: string;
+  };
+}
+
+// Clean and standardize description text by removing HTML tags and fixing quotes
+function cleanDescription(text: string): string {
+  if (!text) return '';
+  
+  // First replace HTML entities
+  let cleanText = text
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ');
+  
+  // Remove HTML tags
+  cleanText = cleanText.replace(/<[^>]*>/g, '');
+  
+  // Fix multiple spaces
+  cleanText = cleanText.replace(/\s+/g, ' ').trim();
+  
+  // Replace repeated quotes
+  cleanText = cleanText.replace(/""+/g, '"');
+  
+  return cleanText;
 }
 
 // Transform Google Books item to our Book type
@@ -82,13 +111,20 @@ function transformGoogleBookToBook(book: GoogleBookItem): Book {
                book.volumeInfo.imageLinks.thumbnail ||
                DEFAULT_BOOK_IMAGE;
     
-    // Ensure HTTPS for Google Book API images and remove zoom parameter
+    // Ensure HTTPS for Google Book API images
     if (imageUrl.startsWith('http:')) {
       imageUrl = imageUrl.replace('http:', 'https:');
     }
     
-    // Remove the zoom parameter which can cause issues
-    imageUrl = imageUrl.replace('&zoom=1', '');
+    // For Google Books API: Replace zoom=1 with zoom=0 to get the full cover without cropping
+    if (imageUrl.includes('&zoom=1')) {
+      imageUrl = imageUrl.replace('&zoom=1', '&zoom=0');
+    }
+    
+    // Ensure we're using a properly sized image
+    if (!imageUrl.includes('&zoom=') && !imageUrl.includes('&edge=')) {
+      imageUrl = `${imageUrl}&zoom=0`;
+    }
   }
   
   // Generate categories based on Google Books categories or assign defaults
@@ -147,7 +183,7 @@ function transformGoogleBookToBook(book: GoogleBookItem): Book {
     }
   }
   
-  // Create description with available info
+  // Create and clean description with available info
   let description = book.volumeInfo.description || '';
   if (!description && book.volumeInfo.subtitle) {
     description = book.volumeInfo.subtitle;
@@ -155,6 +191,9 @@ function transformGoogleBookToBook(book: GoogleBookItem): Book {
   if (!description) {
     description = `Published by ${book.volumeInfo.publisher || 'Unknown'} ${book.volumeInfo.publishedDate ? `in ${book.volumeInfo.publishedDate.substring(0, 4)}` : ''}.`;
   }
+  
+  // Clean and standardize the description
+  description = cleanDescription(description);
   
   return {
     id: book.id,
@@ -168,6 +207,9 @@ function transformGoogleBookToBook(book: GoogleBookItem): Book {
     updated_at: new Date().toISOString(),
     is_featured: Math.random() > 0.8, // 20% chance of being featured
     categories: categoryAssignments,
+    // Add ratings data if available
+    ratings: book.volumeInfo.averageRating || 0,
+    ratings_count: book.volumeInfo.ratingsCount || 0
   };
 }
 
@@ -193,8 +235,8 @@ export async function searchGoogleBooks(
 
     console.log(`Fetching books from Google Books API for query: ${query}`);
     
-    // Build search URL with proper parameters
-    const url = `${API_BASE_URL}/volumes?q=${encodeURIComponent(query)}&maxResults=${limit}&startIndex=${startIndex}&printType=books&projection=full`;
+    // Build search URL with proper parameters - filter to books only
+    const url = `${API_BASE_URL}/volumes?q=${encodeURIComponent(query)}&maxResults=${limit}&startIndex=${startIndex}&printType=books&projection=full&filter=paid-ebooks`;
     
     // Use enhanced fetch with caching, retries, and timeout
     const data = await fetchWithCache<GoogleBooksSearchResponse>(
@@ -278,7 +320,7 @@ export async function getBookDetails(bookId: string): Promise<Book | null> {
 /**
  * Get books by category using appropriate search terms
  */
-export async function getCategoryBooks(categorySlug: string, limit = 10, startIndex = 0): Promise<{ books: Book[], totalItems: number }> {
+export async function getCategoryBooks(categorySlug: string, limit = 20, startIndex = 0): Promise<{ books: Book[], totalItems: number }> {
   // Map categories to effective search terms for Google Books API
   const CATEGORY_SEARCH_TERMS: Record<string, string> = {
     'african-literature': 'african literature fiction chinua achebe',
@@ -325,7 +367,7 @@ export async function getCategoryBooks(categorySlug: string, limit = 10, startIn
 /**
  * Get new releases (recent books)
  */
-export async function getNewReleases(limit = 10): Promise<Book[]> {
+export async function getNewReleases(limit = 20): Promise<Book[]> {
   try {
     const cacheKey = `gbooks_new_releases_${limit}`;
     const cachedResult = cache.books.get<Book[]>(cacheKey);
@@ -352,7 +394,7 @@ export async function getNewReleases(limit = 10): Promise<Book[]> {
 /**
  * Get featured books (bestsellers or highly rated)
  */
-export async function getFeaturedBooks(limit = 10): Promise<Book[]> {
+export async function getFeaturedBooks(limit = 20): Promise<Book[]> {
   try {
     const cacheKey = `gbooks_featured_${limit}`;
     const cachedResult = cache.books.get<Book[]>(cacheKey);

@@ -62,12 +62,25 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
     console.log(`Image loading error for: ${finalSrc}`);
     
     if (retryCount < 2) {
-      // For Google Books images, try replacing edge params or zoom values
+      // For Google Books images, try replacing zoom parameters
       if (finalSrc.includes('books.google')) {
-        const newSrc = finalSrc
-          .replace('&edge=curl', '')
-          .replace('&zoom=1', '')
-          .replace('http://', 'https://');
+        let newSrc = finalSrc;
+        
+        // Try different zoom values for Google Books API images
+        if (newSrc.includes('&zoom=1')) {
+          newSrc = newSrc.replace('&zoom=1', '&zoom=0');
+        } else if (newSrc.includes('&zoom=2')) {
+          newSrc = newSrc.replace('&zoom=2', '&zoom=0');
+        } else if (!newSrc.includes('&zoom=')) {
+          // Add zoom=0 if no zoom parameter exists
+          newSrc = `${newSrc}&zoom=0`;
+        }
+        
+        // Remove edge parameter if present
+        newSrc = newSrc.replace('&edge=curl', '');
+        
+        // Ensure HTTPS
+        newSrc = newSrc.replace('http://', 'https://');
         
         console.log(`Retrying with modified URL: ${newSrc}`);
         setFinalSrc(newSrc);

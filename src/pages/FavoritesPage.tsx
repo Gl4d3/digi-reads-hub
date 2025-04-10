@@ -26,7 +26,7 @@ const FavoritesPage = () => {
       
       setIsLoading(true);
       try {
-        // Remove the user.id parameter
+        // Use the service function without parameters
         const data = await getFavorites();
         setFavorites(data);
       } catch (error) {

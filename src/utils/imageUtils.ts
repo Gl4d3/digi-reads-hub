@@ -11,6 +11,8 @@ const FALLBACK_IMAGES = [
   'https://images.unsplash.com/photo-1532012197267-da84d127e765?w=400&h=600&fit=crop',
   'https://images.unsplash.com/photo-1476275466078-4007374efbbe?w=400&h=600&fit=crop',
   'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=400&h=600&fit=crop',
+  'https://images.unsplash.com/photo-1491841573634-28140fc7ced7?w=400&h=600&fit=crop',
+  'https://images.unsplash.com/photo-1623945359665-b7932b08baab?w=400&h=600&fit=crop',
 ];
 
 /**
@@ -37,11 +39,14 @@ export const getOptimizedImageUrl = (url?: string): string => {
       // Remove problematic params that can cause image loading issues
       processedUrl = processedUrl
         .replace('&edge=curl', '')
-        .replace('&zoom=1', '');
+        .replace('&zoom=1', '&zoom=0');
       
-      // For thumbnail URLs, try to get higher quality version if available
-      if (processedUrl.includes('&img=1&zoom=1')) {
-        processedUrl = processedUrl.replace('&img=1&zoom=1', '&img=1&zoom=2');
+      // For thumbnail URLs, try to get higher quality version
+      if (processedUrl.includes('&img=1')) {
+        // If it has img=1 but no zoom, add zoom=0
+        if (!processedUrl.includes('&zoom=')) {
+          processedUrl += '&zoom=0';
+        }
       }
       
       // Add cache-busting to avoid stale images
@@ -107,10 +112,18 @@ export const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event
   
   // Handle Google Books images
   if (target.src.includes('books.google.com')) {
-    // Try without edge and zoom params
+    // Try different zoom settings
+    if (target.src.includes('&zoom=1')) {
+      target.src = target.src.replace('&zoom=1', '&zoom=0');
+    } else if (target.src.includes('&zoom=2')) {
+      target.src = target.src.replace('&zoom=2', '&zoom=0');
+    } else if (!target.src.includes('&zoom=')) {
+      target.src = target.src + '&zoom=0';
+    }
+    
+    // Try without edge param
     target.src = target.src
       .replace('&edge=curl', '')
-      .replace('&zoom=1', '')
       .replace('http:', 'https:');
     return;
   }

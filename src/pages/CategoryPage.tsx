@@ -2,15 +2,19 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import BookCard from '@/components/BookCard';
-import { getBooksByCategory, getCategories } from '@/services/bookServiceFixed';
+import { getCategories } from '@/services/bookServiceFixed';
+import { getCategoryBooks } from '@/services/googleBooksService';
 import { Book, Category } from '@/types/supabase';
 import Navbar from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, SearchX, RefreshCw } from 'lucide-react';
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 
 type CategoryParams = {
   categoryId?: string;
 };
+
+const BOOKS_PER_PAGE = 20;
 
 const CategoryPage = () => {
   const { categoryId } = useParams<CategoryParams>();
@@ -18,6 +22,8 @@ const CategoryPage = () => {
   const [category, setCategory] = useState<Category | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
   
   useEffect(() => {
     const fetchCategoryInfo = async () => {
@@ -46,25 +52,34 @@ const CategoryPage = () => {
       setIsError(false);
       
       try {
-        const data = await getBooksByCategory(categoryId);
-        setBooks(data);
+        // Calculate start index for pagination (0-based)
+        const startIndex = (currentPage - 1) * BOOKS_PER_PAGE;
+        
+        // Use Google Books API directly for pagination
+        const result = await getCategoryBooks(categoryId, BOOKS_PER_PAGE, startIndex);
+        setBooks(result.books);
+        setTotalItems(result.totalItems);
       } catch (error) {
         console.error('Error fetching books by category:', error);
         setIsError(true);
       } finally {
         setIsLoading(false);
+        // Scroll to top when changing pages
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       }
     };
 
     fetchBooks();
-  }, [categoryId]);
+  }, [categoryId, currentPage]);
 
   const handleRefresh = () => {
     if (categoryId) {
       setIsLoading(true);
-      getBooksByCategory(categoryId)
-        .then(data => {
-          setBooks(data);
+      const startIndex = (currentPage - 1) * BOOKS_PER_PAGE;
+      getCategoryBooks(categoryId, BOOKS_PER_PAGE, startIndex)
+        .then(result => {
+          setBooks(result.books);
+          setTotalItems(result.totalItems);
           setIsError(false);
         })
         .catch(err => {
@@ -75,6 +90,65 @@ const CategoryPage = () => {
           setIsLoading(false);
         });
     }
+  };
+
+  // Calculate total pages
+  const totalPages = Math.min(Math.ceil(totalItems / BOOKS_PER_PAGE), 10); // Limit to 10 pages max (Google Books API limitation)
+
+  // Handle page change
+  const handlePageChange = (page: number) => {
+    if (page < 1 || page > totalPages) return;
+    setCurrentPage(page);
+  };
+
+  // Generate page numbers for pagination
+  const getPageNumbers = () => {
+    const pageNumbers = [];
+    const maxPagesShown = 5; // Show at most 5 page numbers
+  
+    if (totalPages <= maxPagesShown) {
+      // Show all pages if there are few of them
+      for (let i = 1; i <= totalPages; i++) {
+        pageNumbers.push(i);
+      }
+    } else {
+      // Always include first page
+      pageNumbers.push(1);
+      
+      // Calculate start and end of middle range
+      let startPage = Math.max(2, currentPage - 1);
+      let endPage = Math.min(currentPage + 1, totalPages - 1);
+      
+      // Adjust if we're near the beginning
+      if (currentPage <= 3) {
+        endPage = Math.min(maxPagesShown - 1, totalPages - 1);
+      }
+      
+      // Adjust if we're near the end
+      if (currentPage >= totalPages - 2) {
+        startPage = Math.max(2, totalPages - maxPagesShown + 2);
+      }
+      
+      // Add ellipsis after first page if needed
+      if (startPage > 2) {
+        pageNumbers.push('ellipsis-start');
+      }
+      
+      // Add middle pages
+      for (let i = startPage; i <= endPage; i++) {
+        pageNumbers.push(i);
+      }
+      
+      // Add ellipsis before last page if needed
+      if (endPage < totalPages - 1) {
+        pageNumbers.push('ellipsis-end');
+      }
+      
+      // Always include last page
+      pageNumbers.push(totalPages);
+    }
+    
+    return pageNumbers;
   };
 
   const categoryName = category?.name || categoryId
@@ -102,7 +176,7 @@ const CategoryPage = () => {
 
         {isLoading ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-6">
-            {[...Array(10)].map((_, index) => (
+            {[...Array(BOOKS_PER_PAGE)].map((_, index) => (
               <div key={index} className="book-card animate-pulse">
                 <div className="aspect-[2/3] bg-muted rounded-md mb-4"></div>
                 <div className="space-y-2">
@@ -138,11 +212,66 @@ const CategoryPage = () => {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-6">
-            {books.map((book) => (
-              <BookCard key={book.id} {...book} />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-6">
+              {books.map((book) => (
+                <BookCard key={book.id} {...book} />
+              ))}
+            </div>
+            
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <Pagination className="my-8">
+                <PaginationContent>
+                  {currentPage > 1 && (
+                    <PaginationItem>
+                      <PaginationPrevious 
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handlePageChange(currentPage - 1);
+                        }} 
+                      />
+                    </PaginationItem>
+                  )}
+                  
+                  {/* Page numbers */}
+                  {getPageNumbers().map((page, i) => (
+                    <PaginationItem key={i}>
+                      {page === 'ellipsis-start' || page === 'ellipsis-end' ? (
+                        <span className="flex h-9 w-9 items-center justify-center">
+                          ...
+                        </span>
+                      ) : (
+                        <PaginationLink
+                          href="#"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handlePageChange(page as number);
+                          }}
+                          isActive={page === currentPage}
+                        >
+                          {page}
+                        </PaginationLink>
+                      )}
+                    </PaginationItem>
+                  ))}
+                  
+                  {currentPage < totalPages && (
+                    <PaginationItem>
+                      <PaginationNext 
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handlePageChange(currentPage + 1);
+                        }} 
+                      />
+                    </PaginationItem>
+                  )}
+                </PaginationContent>
+              </Pagination>
+            )}
+          </>
         )}
       </div>
     </div>

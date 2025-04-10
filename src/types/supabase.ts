@@ -1,16 +1,17 @@
-
 export type Book = {
   id: string;
   title: string;
   author: string;
-  price: number;
   description?: string;
-  image_url?: string;
+  price: number;
+  image_url: string;
   format: 'ebook' | 'hardcover' | 'both';
   created_at: string;
   updated_at: string;
-  is_featured: boolean;
-  categories?: string[]; // Add categories property to Book type
+  is_featured?: boolean;
+  categories?: string[];
+  ratings?: number;
+  ratings_count?: number;
 };
 
 export type Category = {
